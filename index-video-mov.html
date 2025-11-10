@@ -179,34 +179,43 @@
     <!-- Hiro Marker mit Video -->
     <a-marker preset="hiro" id="hiroMarker">
       
-      <!-- Video schwebend über dem Marker (wie ein Bildschirm) -->
-      <a-video 
-        src="#myVideo" 
-        width="3" 
-        height="1.6875" 
-        position="0 1.5 0"
-        rotation="-90 0 0"
-        material="shader: flat">
-      </a-video>
-      
-      <!-- Optional: Rahmen um das Video -->
+      <!-- Test-Würfel (um zu sehen ob Marker erkannt wird) -->
       <a-box 
-        position="0 1.48 0" 
-        width="3.1" 
-        height="0.05" 
-        depth="1.7875"
-        color="#222222"
-        material="metalness: 0.8; roughness: 0.2">
+        position="0 0.5 0" 
+        depth="0.5" 
+        height="0.5" 
+        width="0.5" 
+        color="#FF0000"
+        material="opacity: 0.8">
       </a-box>
       
-      <!-- Optional: Text unter dem Video -->
+      <!-- Video aufrecht stehend (wie ein Fernseher) -->
+      <a-video 
+        src="#myVideo" 
+        width="2" 
+        height="1.125" 
+        position="0 1.5 0"
+        rotation="0 0 0"
+        material="shader: flat; side: double">
+      </a-video>
+      
+      <!-- Rahmen um das Video -->
+      <a-box 
+        position="0 1.5 0" 
+        width="2.1" 
+        height="1.225" 
+        depth="0.05"
+        color="#000000"
+        material="opacity: 0.9">
+      </a-box>
+      
+      <!-- Text unter dem Video -->
       <a-text 
-        value="SimpleAR Video" 
-        position="0 0.3 0" 
+        value="Maribu Video" 
+        position="0 0.5 0" 
         align="center" 
         color="#FFFFFF" 
-        width="4"
-        rotation="-90 0 0">
+        width="3">
       </a-text>
       
     </a-marker>
