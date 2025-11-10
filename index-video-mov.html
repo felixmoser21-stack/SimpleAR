@@ -153,7 +153,7 @@
   <a-scene
     id="arScene"
     embedded
-    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; trackingMethod: best; smooth: true; smoothCount: 10; smoothTolerance: 0.01; smoothThreshold: 5;"
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; trackingMethod: best; smooth: true; smoothCount: 15; smoothTolerance: 0.02; smoothThreshold: 8;"
     vr-mode-ui="enabled: false"
     renderer="logarithmicDepthBuffer: true; precision: medium;"
     loading-screen="enabled: false">
@@ -178,13 +178,13 @@
     <!-- Hiro Marker mit Video -->
     <a-marker preset="hiro" id="hiroMarker">
       
-      <!-- Video ohne Rotation -->
+      <!-- Video 3x größer (Fläche) -->
       <a-plane 
         src="#myVideo" 
-        width="1.6875" 
-        height="3" 
-        position="0 0.2 0"
-        rotation="90 0 180"
+        width="5.196" 
+        height="2.921" 
+        position="0 2.5 0"
+        rotation="0 0 0"
         material="shader: flat; side: double">
       </a-plane>
       
