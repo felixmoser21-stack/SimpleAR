@@ -2,10 +2,11 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, orientation=landscape" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>SimpleAR – Video AR</title>
-  <meta name="description" content="Video-basiertes WebAR mit AR.js und A-Frame" />
+  <meta name="screen-orientation" content="landscape" />
+  <title>Zoo Neuwied – AR Maribus</title>
+  <meta name="description" content="Willkommen im Zoo Neuwied! Erlebe Maribus in Augmented Reality" />
   <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <!-- AR.js (A-Frame Build) -->
@@ -132,9 +133,9 @@
   
   <!-- Start Overlay (iOS benötigt User-Interaktion) -->
   <div class="overlay" id="startOverlay">
-    <h1>🎬 SimpleAR Video</h1>
-    <p>Scanne den Hiro-Marker und erlebe ein Video in Augmented Reality!</p>
-    <button class="start-button" id="startButton">AR starten</button>
+    <h1>🦁 Willkommen im Zoo Neuwied!</h1>
+    <p>Erlebe Maribus in Augmented Reality!</p>
+    <button class="start-button" id="startButton">AR-Maribus starten</button>
   </div>
   
   <!-- Loading Indicator -->
@@ -177,13 +178,13 @@
     <!-- Hiro Marker mit Video -->
     <a-marker preset="hiro" id="hiroMarker">
       
-      <!-- Video flach liegend über dem Marker - PARALLEL ZUM BODEN -->
+      <!-- Video aufrecht stehend - wie ein Fernseher -->
       <a-plane 
         src="#myVideo" 
         width="3" 
         height="1.6875" 
-        position="0 0 0"
-        rotation="-90 0 180"
+        position="0 1.5 0"
+        rotation="0 0 180"
         material="shader: flat; side: double">
       </a-plane>
       
