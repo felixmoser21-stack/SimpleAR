@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>SimpleAR – Web AR</title>
+  <meta name="description" content="Markerbasiertes WebAR mit AR.js und A-Frame" />
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <!-- AR.js (A-Frame Build) -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar-nft.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { 
+      height: 100%; 
+      width: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+    
+    /* Overlay UI */
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .overlay.hidden { display: none; }
+    
+    .overlay h1 {
+      color: #fff;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    
+    .overlay p {
+      color: #ccc;
+      font-size: 16px;
+      line-height: 1.5;
+      margin-bottom: 30px;
+      max-width: 400px;
+    }
+    
+    .start-button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 16px 40px;
+      font-size: 18px;
+      font-weight: 600;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .start-button:active {
+      transform: scale(0.95);
+      box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+    }
+    
+    /* Info Banner */
+    .info-banner {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 25px;
+      font-size: 14px;
+      backdrop-filter: blur(10px);
+      max-width: 90%;
+      text-align: center;
+    }
+    
+    /* Marker Link */
+    .marker-link {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px 20px;
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .marker-link a {
+      color: #8fd1ff;
+      text-decoration: none;
+      font-size: 13px;
+    }
+    
+    /* Loading Indicator */
+    .loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 50;
+      color: white;
+      font-size: 16px;
+      display: none;
+    }
+    
+    .loading.active { display: block; }
+    
+    .spinner {
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid white;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Start Overlay (iOS benötigt User-Interaktion) -->
+  <div class="overlay" id="startOverlay">
+    <h1>🎯 SimpleAR Web</h1>
+    <p>Scanne den Hiro-Marker mit deiner Kamera und erlebe Augmented Reality direkt im Browser!</p>
+    <button class="start-button" id="startButton">AR starten</button>
+  </div>
+  
+  <!-- Loading Indicator -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div>Kamera wird geladen...</div>
+  </div>
+  
+  <!-- Info Banner -->
+  <div class="info-banner" id="infoBanner" style="display: none;">
+    📷 Richte die Kamera auf den Hiro-Marker
+  </div>
+  
+  <!-- Marker Download Link -->
+  <div class="marker-link" id="markerLink" style="display: none;">
+    <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank" rel="noopener">
+      📥 Hiro-Marker herunterladen
+    </a>
+  </div>
+
+  <!-- AR Scene -->
+  <a-scene
+    id="arScene"
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+    vr-mode-ui="enabled: false"
+    renderer="logarithmicDepthBuffer: true; precision: medium;"
+    loading-screen="enabled: false">
+    
+    <!-- Assets -->
+    <a-assets>
+      <!-- Hier können später Videos oder 3D-Modelle geladen werden -->
+    </a-assets>
+    
+    <!-- Beleuchtung -->
+    <a-entity light="type: ambient; intensity: 0.8"></a-entity>
+    <a-entity light="type: directional; intensity: 0.5" position="1 1 0"></a-entity>
+    
+    <!-- Hiro Marker mit 3D-Objekt -->
+    <a-marker preset="hiro" id="hiroMarker">
+      <!-- Animierter Würfel -->
+      <a-box 
+        position="0 0.5 0" 
+        depth="1" 
+        height="1" 
+        width="1" 
+        color="#4CC3D9"
+        material="opacity: 0.9"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear"
+        animation__scale="property: scale; from: 1 1 1; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 2000; easing: easeInOutQuad">
+      </a-box>
+      
+      <!-- Text über dem Würfel -->
+      <a-text 
+        value="SimpleAR" 
+        position="0 1.8 0" 
+        align="center" 
+        color="#FFFFFF" 
+        width="4"
+        font="roboto"
+        shader="msdf">
+      </a-text>
+      
+      <!-- Zusätzliche Elemente (optional) -->
+      <!-- Beispiel: Rotierender Ring -->
+      <a-torus 
+        position="0 0.5 0" 
+        radius="0.8" 
+        radius-tubular="0.05" 
+        color="#FF6B6B"
+        animation="property: rotation; to: 360 0 0; loop: true; dur: 3000; easing: linear">
+      </a-torus>
+    </a-marker>
+    
+    <!-- Kamera -->
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    // iOS benötigt User-Interaktion für Kamera-Zugriff
+    const startButton = document.getElementById('startButton');
+    const startOverlay = document.getElementById('startOverlay');
+    const loading = document.getElementById('loading');
+    const infoBanner = document.getElementById('infoBanner');
+    const markerLink = document.getElementById('markerLink');
+    const arScene = document.getElementById('arScene');
+    const hiroMarker = document.getElementById('hiroMarker');
+    
+    let arStarted = false;
+    
+    // Start Button Click
+    startButton.addEventListener('click', async () => {
+      startOverlay.classList.add('hidden');
+      loading.classList.add('active');
+      
+      // Warte kurz, damit AR.js die Kamera initialisieren kann
+      setTimeout(() => {
+        loading.classList.remove('active');
+        infoBanner.style.display = 'block';
+        markerLink.style.display = 'block';
+        arStarted = true;
+      }, 2000);
+    });
+    
+    // Marker Found/Lost Events
+    if (hiroMarker) {
+      hiroMarker.addEventListener('markerFound', () => {
+        console.log('✅ Hiro-Marker erkannt!');
+        infoBanner.textContent = '✅ Marker erkannt!';
+        infoBanner.style.background = 'rgba(76, 195, 217, 0.8)';
+      });
+      
+      hiroMarker.addEventListener('markerLost', () => {
+        console.log('❌ Marker verloren');
+        infoBanner.textContent = '📷 Richte die Kamera auf den Hiro-Marker';
+        infoBanner.style.background = 'rgba(0, 0, 0, 0.7)';
+      });
+    }
+    
+    // Scene geladen
+    arScene.addEventListener('loaded', () => {
+      console.log('🎬 AR Scene geladen');
+    });
+    
+    // Fehlerbehandlung
+    window.addEventListener('error', (e) => {
+      console.error('Fehler:', e.message);
+      if (!arStarted) {
+        loading.classList.remove('active');
+        alert('Fehler beim Laden der AR-Experience. Bitte stelle sicher, dass du HTTPS verwendest und die Kamera-Berechtigung erteilt hast.');
+      }
+    });
+    
+    // Kamera-Berechtigung prüfen (optional)
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      console.log('✅ getUserMedia verfügbar');
+    } else {
+      console.warn('⚠️ getUserMedia nicht verfügbar - HTTPS erforderlich!');
+    }
+  </script>
+</body>
+</html>
