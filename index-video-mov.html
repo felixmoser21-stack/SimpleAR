@@ -179,22 +179,22 @@
     <!-- Hiro Marker mit Video -->
     <a-marker preset="hiro" id="hiroMarker">
       
-      <!-- Video GROSS und HELL -->
+      <!-- Video FLACH liegend über dem Marker -->
       <a-video 
         src="#myVideo" 
         width="3" 
         height="1.6875" 
-        position="0 1.5 0"
-        rotation="0 0 0"
+        position="0 0.5 0"
+        rotation="-90 0 0"
         material="shader: flat; side: double; emissive: #FFFFFF; emissiveIntensity: 0.5">
       </a-video>
       
       <!-- Weißer Rahmen für besseren Kontrast -->
       <a-box 
-        position="0 1.5 0" 
+        position="0 0.48 0" 
         width="3.2" 
-        height="1.8" 
-        depth="0.02"
+        height="0.02" 
+        depth="1.8"
         color="#FFFFFF"
         material="opacity: 0.3">
       </a-box>
