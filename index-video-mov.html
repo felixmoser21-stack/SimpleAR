@@ -16,8 +16,18 @@
       height: 100%; 
       width: 100%;
       overflow: hidden;
-      background: #000;
+      background: transparent;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+    
+    /* A-Frame Canvas transparent machen */
+    .a-canvas {
+      background: transparent !important;
+    }
+    
+    /* AR.js Video Feed sichtbar machen */
+    #arjsDebugUIContainer {
+      display: none !important;
     }
     
     /* Overlay UI */
@@ -142,24 +152,13 @@
   <a-scene
     id="arScene"
     embedded
-    arjs="sourceType: webcam; debugUIEnabled: false;"
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
     vr-mode-ui="enabled: false"
     renderer="logarithmicDepthBuffer: true; precision: medium;"
     loading-screen="enabled: false">
     
-    <!-- Assets: Video hier vorladen -->
+    <!-- Assets -->
     <a-assets>
-      <!-- 
-        WICHTIG: Ersetze diese URL mit deinem eigenen Video!
-        
-        Für .mov Dateien:
-        1. Lade dein .mov Video auf GitHub hoch (in einen "videos" Ordner)
-        2. Ersetze die src mit: "videos/dein-video.mov"
-        
-        ODER konvertiere .mov zu .mp4 für bessere Kompatibilität:
-        - Online: https://cloudconvert.com/mov-to-mp4
-        - Das Video sollte nicht zu groß sein (max. 10-20 MB)
-      -->
       <video 
         id="myVideo" 
         src="https://res.cloudinary.com/dh6rqjbtb/video/upload/Maribu_uk5lyw.mp4"
@@ -171,33 +170,22 @@
       </video>
     </a-assets>
     
-    <!-- Beleuchtung - ERHÖHT für helleres Video -->
-    <a-entity light="type: ambient; intensity: 1.5"></a-entity>
-    <a-entity light="type: directional; intensity: 1.0" position="1 1 0"></a-entity>
-    <a-entity light="type: point; intensity: 1.0" position="0 2 0"></a-entity>
+    <!-- Beleuchtung -->
+    <a-entity light="type: ambient; intensity: 0.8"></a-entity>
+    <a-entity light="type: directional; intensity: 0.5" position="1 1 0"></a-entity>
     
     <!-- Hiro Marker mit Video -->
     <a-marker preset="hiro" id="hiroMarker">
       
-      <!-- Video FLACH liegend über dem Marker -->
-      <a-video 
+      <!-- Video flach liegend über dem Marker - KORRIGIERT -->
+      <a-plane 
         src="#myVideo" 
         width="3" 
         height="1.6875" 
-        position="0 0.5 0"
-        rotation="-90 0 0"
-        material="shader: flat; side: double; emissive: #FFFFFF; emissiveIntensity: 0.5">
-      </a-video>
-      
-      <!-- Weißer Rahmen für besseren Kontrast -->
-      <a-box 
-        position="0 0.48 0" 
-        width="3.2" 
-        height="0.02" 
-        depth="1.8"
-        color="#FFFFFF"
-        material="opacity: 0.3">
-      </a-box>
+        position="0 0 0"
+        rotation="-90 0 90"
+        material="shader: flat; side: double">
+      </a-plane>
       
     </a-marker>
     
