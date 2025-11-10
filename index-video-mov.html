@@ -167,56 +167,37 @@
         loop="true"
         crossorigin="anonymous"
         playsinline
-        webkit-playsinline
-        muted>
+        webkit-playsinline>
       </video>
     </a-assets>
     
-    <!-- Beleuchtung -->
-    <a-entity light="type: ambient; intensity: 0.8"></a-entity>
-    <a-entity light="type: directional; intensity: 0.5" position="1 1 0"></a-entity>
+    <!-- Beleuchtung - ERHÖHT für helleres Video -->
+    <a-entity light="type: ambient; intensity: 1.5"></a-entity>
+    <a-entity light="type: directional; intensity: 1.0" position="1 1 0"></a-entity>
+    <a-entity light="type: point; intensity: 1.0" position="0 2 0"></a-entity>
     
     <!-- Hiro Marker mit Video -->
     <a-marker preset="hiro" id="hiroMarker">
       
-      <!-- Test-Würfel (um zu sehen ob Marker erkannt wird) -->
-      <a-box 
-        position="0 0.5 0" 
-        depth="0.5" 
-        height="0.5" 
-        width="0.5" 
-        color="#FF0000"
-        material="opacity: 0.8">
-      </a-box>
-      
-      <!-- Video aufrecht stehend (wie ein Fernseher) -->
+      <!-- Video GROSS und HELL -->
       <a-video 
         src="#myVideo" 
-        width="2" 
-        height="1.125" 
+        width="3" 
+        height="1.6875" 
         position="0 1.5 0"
         rotation="0 0 0"
-        material="shader: flat; side: double">
+        material="shader: flat; side: double; emissive: #FFFFFF; emissiveIntensity: 0.5">
       </a-video>
       
-      <!-- Rahmen um das Video -->
+      <!-- Weißer Rahmen für besseren Kontrast -->
       <a-box 
         position="0 1.5 0" 
-        width="2.1" 
-        height="1.225" 
-        depth="0.05"
-        color="#000000"
-        material="opacity: 0.9">
+        width="3.2" 
+        height="1.8" 
+        depth="0.02"
+        color="#FFFFFF"
+        material="opacity: 0.3">
       </a-box>
-      
-      <!-- Text unter dem Video -->
-      <a-text 
-        value="Maribu Video" 
-        position="0 0.5 0" 
-        align="center" 
-        color="#FFFFFF" 
-        width="3">
-      </a-text>
       
     </a-marker>
     
