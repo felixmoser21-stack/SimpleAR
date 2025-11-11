@@ -165,7 +165,7 @@
   <!-- MindAR Scene mit transparentem Renderer -->
   <a-scene
     id="arScene"
-    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: true; filterMinCF:0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5;"
+    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: true; filterMinCF:0.00001; filterBeta: 0.0001; warmupTolerance: 10; missTolerance: 10;"
     embedded
     color-space="sRGB"
     renderer="alpha: true; antialias: true; colorManagement: true; physicallyCorrectLights: true"
@@ -191,12 +191,12 @@
     <!-- Target Entity (Marker) -->
     <a-entity mindar-image-target="targetIndex: 0">
       
-      <!-- Video 3x größer - STABIL mit MindAR -->
+      <!-- Video halb so groß -->
       <a-video 
         src="#myVideo" 
-        width="2.532" 
-        height="4.5" 
-        position="0 0 0"
+        width="1.266" 
+        height="2.25" 
+        position="0 0 0.001"
         rotation="0 0 0"
         material="shader: flat; side: double"></a-video>
       
