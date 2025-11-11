@@ -21,8 +21,26 @@
       height: 100%; 
       width: 100%;
       overflow: hidden;
-      background: #000;
+      background: transparent;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+    
+    /* MindAR Kamera-Feed unter dem Canvas */
+    video[mindar-video], .mindar-ui-overlay video, #ar-video, .mindar-video {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+    }
+    
+    /* A-Frame Canvas transparent und darüber */
+    canvas.a-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background: transparent !important;
     }
     
     /* Overlay UI */
@@ -144,12 +162,13 @@
     📷 Richte die Kamera auf den Marker
   </div>
 
-  <!-- MindAR Scene -->
+  <!-- MindAR Scene mit transparentem Renderer -->
   <a-scene
     id="arScene"
-    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; filterMinCF:0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5;"
+    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: true; filterMinCF:0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5;"
+    embedded
     color-space="sRGB"
-    renderer="colorManagement: true, physicallyCorrectLights"
+    renderer="alpha: true; antialias: true; colorManagement: true; physicallyCorrectLights: true"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false">
     
@@ -208,7 +227,18 @@
       }, 3000);
     });
     
-    // MindAR Scene Events
+    // MindAR Scene Events + Safari-Fix
+    arScene.addEventListener('loaded', () => {
+      console.log('✅ Scene geladen');
+      // Safari-Fix: Clear-Alpha auf 0 setzen
+      const r = arScene.renderer;
+      if (r.setClearAlpha) {
+        r.setClearAlpha(0);
+      } else {
+        r.setClearColor(0x000000, 0); // Fallback
+      }
+    });
+    
     arScene.addEventListener('renderstart', () => {
       console.log('✅ MindAR gestartet');
       loading.classList.remove('active');
