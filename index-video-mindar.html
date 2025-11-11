@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, orientation=landscape" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="screen-orientation" content="landscape" />
+  <title>Zoo Neuwied – AR Maribus (MindAR)</title>
+  <meta name="description" content="Willkommen im Zoo Neuwied! Erlebe Maribus in Augmented Reality mit MindAR" />
+  
+  <!-- MindAR -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image.prod.js"></script>
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <!-- MindAR A-Frame Integration -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { 
+      height: 100%; 
+      width: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+    
+    /* Overlay UI */
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .overlay.hidden { display: none; }
+    
+    .overlay h1 {
+      color: #fff;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    
+    .overlay p {
+      color: #ccc;
+      font-size: 16px;
+      line-height: 1.5;
+      margin-bottom: 30px;
+      max-width: 400px;
+    }
+    
+    .start-button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 16px 40px;
+      font-size: 18px;
+      font-weight: 600;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .start-button:active {
+      transform: scale(0.95);
+      box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+    }
+    
+    /* Info Banner */
+    .info-banner {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 25px;
+      font-size: 14px;
+      backdrop-filter: blur(10px);
+      max-width: 90%;
+      text-align: center;
+    }
+    
+    /* Loading Indicator */
+    .loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 50;
+      color: white;
+      font-size: 16px;
+      display: none;
+      text-align: center;
+    }
+    
+    .loading.active { display: block; }
+    
+    .spinner {
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid white;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Start Overlay -->
+  <div class="overlay" id="startOverlay">
+    <h1>🦁 Willkommen im Zoo Neuwied!</h1>
+    <p>Erlebe Maribus in Augmented Reality!<br><small>Powered by MindAR - Stabil & Professionell</small></p>
+    <button class="start-button" id="startButton">AR-Maribus starten</button>
+  </div>
+  
+  <!-- Loading Indicator -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div>MindAR wird geladen...</div>
+  </div>
+  
+  <!-- Info Banner -->
+  <div class="info-banner" id="infoBanner" style="display: none;">
+    📷 Richte die Kamera auf den Marker
+  </div>
+
+  <!-- MindAR Scene -->
+  <a-scene
+    id="arScene"
+    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/markers/ZOOMarker.mind; filterMinCF:0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5;"
+    color-space="sRGB"
+    renderer="colorManagement: true, physicallyCorrectLights"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+    
+    <!-- Assets -->
+    <a-assets>
+      <video 
+        id="myVideo" 
+        src="https://res.cloudinary.com/dh6rqjbtb/video/upload/Maribu_uk5lyw.mp4"
+        preload="auto"
+        loop="true"
+        crossorigin="anonymous"
+        playsinline
+        webkit-playsinline>
+      </video>
+    </a-assets>
+    
+    <!-- Kamera -->
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    
+    <!-- Target Entity (Marker) -->
+    <a-entity mindar-image-target="targetIndex: 0">
+      
+      <!-- Video 3x größer - STABIL mit MindAR -->
+      <a-video 
+        src="#myVideo" 
+        width="1.5" 
+        height="0.844" 
+        position="0 0 0"
+        rotation="0 0 0"
+        material="shader: flat; side: double"></a-video>
+      
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const startButton = document.getElementById('startButton');
+    const startOverlay = document.getElementById('startOverlay');
+    const loading = document.getElementById('loading');
+    const infoBanner = document.getElementById('infoBanner');
+    const arScene = document.getElementById('arScene');
+    const video = document.getElementById('myVideo');
+    
+    let arStarted = false;
+    let videoPlaying = false;
+    
+    // Start Button Click
+    startButton.addEventListener('click', async () => {
+      startOverlay.classList.add('hidden');
+      loading.classList.add('active');
+      
+      // Warte auf MindAR Initialisierung
+      setTimeout(() => {
+        loading.classList.remove('active');
+        infoBanner.style.display = 'block';
+        arStarted = true;
+      }, 3000);
+    });
+    
+    // MindAR Scene Events
+    arScene.addEventListener('renderstart', () => {
+      console.log('✅ MindAR gestartet');
+      loading.classList.remove('active');
+      infoBanner.style.display = 'block';
+    });
+    
+    // Target Found/Lost Events
+    const target = document.querySelector('[mindar-image-target]');
+    
+    if (target) {
+      target.addEventListener('targetFound', () => {
+        console.log('✅ Marker erkannt!');
+        infoBanner.textContent = '🎬 Video startet...';
+        infoBanner.style.background = 'rgba(76, 195, 217, 0.8)';
+        
+        // Video abspielen
+        if (video && !videoPlaying) {
+          video.play().then(() => {
+            videoPlaying = true;
+            console.log('🎬 Video wird abgespielt');
+            infoBanner.textContent = '✅ Video läuft!';
+          }).catch(err => {
+            console.error('Video-Fehler:', err);
+            infoBanner.textContent = '⚠️ Video konnte nicht gestartet werden';
+          });
+        }
+      });
+      
+      target.addEventListener('targetLost', () => {
+        console.log('❌ Marker verloren');
+        infoBanner.textContent = '📷 Richte die Kamera auf den Marker';
+        infoBanner.style.background = 'rgba(0, 0, 0, 0.7)';
+        
+        // Video pausieren
+        if (video && videoPlaying) {
+          video.pause();
+          videoPlaying = false;
+          console.log('⏸️ Video pausiert');
+        }
+      });
+    }
+    
+    // Video geladen
+    if (video) {
+      video.addEventListener('loadeddata', () => {
+        console.log('✅ Video geladen und bereit');
+      });
+      
+      video.addEventListener('error', (e) => {
+        console.error('❌ Video-Ladefehler:', e);
+        infoBanner.textContent = '⚠️ Video konnte nicht geladen werden';
+        infoBanner.style.background = 'rgba(255, 0, 0, 0.7)';
+      });
+    }
+    
+    // Fehlerbehandlung
+    window.addEventListener('error', (e) => {
+      console.error('Fehler:', e.message);
+      if (!arStarted) {
+        loading.classList.remove('active');
+        alert('Fehler beim Laden der AR-Experience. Bitte stelle sicher, dass du HTTPS verwendest und die Kamera-Berechtigung erteilt hast.');
+      }
+    });
+  </script>
+</body>
+</html>
