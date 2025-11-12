@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Zoo Neuwied - Maribus AR (NFT)</title>
+  
+  <!-- AR.js mit NFT -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.0/dist/aframe-master.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ar-js-org/ar.js@3.4.5/aframe/build/aframe-ar-nft.js"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+    
+    .start-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .start-screen.hidden {
+      display: none;
+    }
+    
+    .start-screen h1 {
+      font-size: 3em;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .start-button {
+      background: white;
+      color: #2E7D32;
+      border: none;
+      padding: 18px 50px;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .start-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(0,0,0,0.3);
+    }
+    
+    .arjs-loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+    }
+    
+    .arjs-loader.hidden {
+      display: none;
+    }
+    
+    .loader-spinner {
+      width: 80px;
+      height: 80px;
+      border: 4px solid rgba(255,255,255,0.1);
+      border-top-color: #4CAF50;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 30px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .info-banner {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 12px 25px;
+      border-radius: 25px;
+      z-index: 1000;
+      font-size: 14px;
+      backdrop-filter: blur(10px);
+      display: none;
+    }
+    
+    .info-banner.show {
+      display: block;
+    }
+    
+    .info-banner.success {
+      background: rgba(76, 195, 217, 0.9);
+    }
+    
+    .error-message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(244, 67, 54, 0.95);
+      color: white;
+      padding: 30px;
+      border-radius: 10px;
+      z-index: 10001;
+      display: none;
+      max-width: 400px;
+      text-align: center;
+    }
+    
+    .error-message.show {
+      display: block;
+    }
+    
+    .debug-info {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.7);
+      color: #0f0;
+      font-family: monospace;
+      font-size: 10px;
+      padding: 5px;
+      border-radius: 3px;
+      z-index: 1000;
+      max-width: 300px;
+    }
+    
+    .a-enter-vr {
+      display: none !important;
+    }
+    
+    #arjsDebugUIContainer {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Start Screen -->
+  <div class="start-screen" id="startScreen">
+    <h1>🦁 Zoo Neuwied</h1>
+    <p style="font-size: 1.2em; margin-bottom: 30px;">Erlebe Maribus in Augmented Reality</p>
+    <button class="start-button" id="startButton">AR Starten</button>
+    <p style="font-size: 0.9em; margin-top: 30px; opacity: 0.7;">
+      Mit Ihrem Zoo-NFT-Marker
+    </p>
+  </div>
+  
+  <!-- Loader -->
+  <div class="arjs-loader" id="loader">
+    <div class="loader-spinner"></div>
+    <div>Initialisiere Zoo AR...</div>
+    <div style="font-size: 0.9em; opacity: 0.7; margin-top: 10px;">
+      Lade NFT-Marker...
+    </div>
+  </div>
+  
+  <!-- Info Banner -->
+  <div class="info-banner" id="infoBanner">
+    📷 Richte die Kamera auf den Zoo-Marker
+  </div>
+  
+  <!-- Error Message -->
+  <div class="error-message" id="errorMessage">
+    <h3>⚠️ NFT-Dateien fehlen!</h3>
+    <p style="margin: 15px 0;">
+      Die Zoo-NFT-Marker-Dateien wurden nicht gefunden.
+    </p>
+    <p style="font-size: 0.9em;">
+      Bitte erstellen Sie zuerst die NFT-Dateien mit dem NFT Marker Creator.
+    </p>
+  </div>
+  
+  <!-- Debug Info -->
+  <div class="debug-info" id="debugInfo" style="display: none;">
+    <div id="debugText">Debug...</div>
+  </div>
+
+  <!-- AR Scene -->
+  <a-scene
+    id="arScene"
+    vr-mode-ui="enabled: false"
+    renderer="logarithmicDepthBuffer: true; precision: highp; antialias: true; alpha: true"
+    embedded
+    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono; maxDetectionRate: 60; smooth: true; smoothCount: 5; smoothTolerance: 0.01; smoothThreshold: 2"
+    stats>
+    
+    <a-assets>
+      <video
+        id="maribuVideo"
+        src="https://res.cloudinary.com/dh6rqjbtb/video/upload/Maribu_uk5lyw.mp4"
+        preload="auto"
+        loop="true"
+        crossorigin="anonymous"
+        playsinline
+        webkit-playsinline
+        muted>
+      </video>
+    </a-assets>
+
+    <!-- Zoo NFT Marker - URL wird dynamisch gesetzt -->
+    <a-nft
+      id="zooMarker"
+      type="nft"
+      url=""
+      smooth="true"
+      smoothCount="10"
+      smoothTolerance="0.01"
+      smoothThreshold="5">
+      
+      <a-entity id="videoContainer" position="0 0 0">
+        <a-video
+          id="videoPlane"
+          src="#maribuVideo"
+          width="1.6"
+          height="2.4"
+          position="0 0 0"
+          rotation="-90 0 0"
+          material="shader: flat; side: double">
+        </a-video>
+      </a-entity>
+    </a-nft>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    // Debug Mode aktivieren mit ?debug in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const debugMode = urlParams.has('debug');
+    const debugInfo = document.getElementById('debugInfo');
+    const debugText = document.getElementById('debugText');
+    
+    if (debugMode) {
+      debugInfo.style.display = 'block';
+    }
+    
+    function debug(msg) {
+      console.log(msg);
+      if (debugMode) {
+        debugText.innerHTML = msg + '<br>' + debugText.innerHTML;
+        // Limit to 10 lines
+        const lines = debugText.innerHTML.split('<br>');
+        if (lines.length > 10) {
+          debugText.innerHTML = lines.slice(0, 10).join('<br>');
+        }
+      }
+    }
+    
+    // Detect environment
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    const pathname = window.location.pathname;
+    
+    debug(`Host: ${hostname}`);
+    debug(`Protocol: ${protocol}`);
+    debug(`Path: ${pathname}`);
+    
+    // Determine if running locally or on GitHub Pages
+    const isLocal = hostname === 'localhost' || 
+                    hostname === '127.0.0.1' || 
+                    protocol === 'file:';
+    
+    const isGitHub = hostname.includes('github.io');
+    
+    // Set correct NFT marker URL based on environment
+    let nftUrl;
+    
+    if (isGitHub) {
+      // GitHub Pages - NFT files are in root directory
+      nftUrl = 'https://felixmoser21-stack.github.io/SimpleAR/ZOO';
+      debug('GitHub Pages detected');
+    } else if (isLocal) {
+      // Local - NFT files are in nft-markers folder
+      nftUrl = './nft-markers/ZOO';
+      debug('Local environment detected');
+    } else {
+      // Other hosting - try relative path
+      nftUrl = './nft-markers/ZOO';
+      debug('Unknown environment - using relative path');
+    }
+    
+    debug(`NFT URL: ${nftUrl}`);
+    
+    // DOM Elements
+    const startScreen = document.getElementById('startScreen');
+    const startButton = document.getElementById('startButton');
+    const loader = document.getElementById('loader');
+    const infoBanner = document.getElementById('infoBanner');
+    const errorMessage = document.getElementById('errorMessage');
+    const video = document.getElementById('maribuVideo');
+    const zooMarker = document.getElementById('zooMarker');
+    
+    // Set NFT URL
+    if (zooMarker && nftUrl) {
+      zooMarker.setAttribute('url', nftUrl);
+      debug(`NFT Marker URL set to: ${nftUrl}`);
+    }
+    
+    let videoPlaying = false;
+    let markerFound = false;
+    
+    // Logging
+    function log(message) {
+      console.log(`[Zoo AR] ${message}`);
+      debug(message);
+    }
+    
+    // Start Button
+    startButton.addEventListener('click', async () => {
+      log('AR Start geklickt');
+      startScreen.classList.add('hidden');
+      
+      // Video vorbereiten
+      try {
+        await video.play();
+        video.pause();
+        video.currentTime = 0;
+        log('Video vorbereitet');
+      } catch (err) {
+        log('Video-Vorbereitung: ' + err.message);
+      }
+    });
+    
+    // AR.js Events
+    window.addEventListener('camera-init', () => {
+      log('Kamera initialisiert');
+      loader.classList.add('hidden');
+      infoBanner.classList.add('show');
+    });
+    
+    window.addEventListener('arjs-nft-loaded', () => {
+      log('Zoo NFT-Marker geladen!');
+      loader.classList.add('hidden');
+      infoBanner.classList.add('show');
+    });
+    
+    // NFT Error Handling
+    window.addEventListener('arjs-nft-error', (event) => {
+      log('NFT Fehler: ' + event.detail);
+      loader.classList.add('hidden');
+      errorMessage.classList.add('show');
+    });
+    
+    // Marker Events
+    zooMarker.addEventListener('markerFound', () => {
+      log('✅ Zoo-Marker erkannt!');
+      markerFound = true;
+      
+      infoBanner.textContent = '✅ Zoo-Marker erkannt - Maribus erscheint!';
+      infoBanner.classList.add('success');
+      
+      // Video abspielen
+      if (!videoPlaying) {
+        video.muted = true;
+        video.play().then(() => {
+          videoPlaying = true;
+          log('Maribus Video läuft');
+          infoBanner.textContent = '🦁 Maribus ist da!';
+        }).catch(err => {
+          log('Video-Fehler: ' + err.message);
+        });
+      }
+    });
+    
+    zooMarker.addEventListener('markerLost', () => {
+      log('Zoo-Marker verloren');
+      markerFound = false;
+      
+      infoBanner.textContent = '📷 Richte die Kamera auf den Zoo-Marker';
+      infoBanner.classList.remove('success');
+      
+      // Video pausieren nach Verzögerung
+      setTimeout(() => {
+        if (!markerFound && videoPlaying) {
+          video.pause();
+          videoPlaying = false;
+          log('Video pausiert');
+        }
+      }, 2000);
+    });
+    
+    // Video Events
+    video.addEventListener('loadeddata', () => {
+      log(`Video geladen: ${video.videoWidth}x${video.videoHeight}`);
+    });
+    
+    video.addEventListener('error', (e) => {
+      log('Video-Ladefehler');
+      console.error(e);
+    });
+    
+    // Check NFT files exist
+    const checkUrl = isGitHub ? 
+      'https://felixmoser21-stack.github.io/SimpleAR/ZOO.fset' : 
+      './nft-markers/ZOO.fset';
+    
+    fetch(checkUrl)
+      .then(response => {
+        if (!response.ok) {
+          log(`⚠️ ZOO.fset nicht gefunden unter: ${checkUrl}`);
+          debug(`NFT Check failed: ${checkUrl}`);
+        } else {
+          log(`✅ NFT-Dateien gefunden unter: ${checkUrl}`);
+        }
+      })
+      .catch(err => {
+        log('NFT-Check Fehler: ' + err.message);
+      });
+    
+    log('Zoo AR System bereit');
+  </script>
+</body>
+</html>
