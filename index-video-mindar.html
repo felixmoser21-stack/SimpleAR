@@ -218,7 +218,7 @@
   <!-- MindAR Scene mit transparentem Renderer -->
   <a-scene
     id="arScene"
-    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; filterMinCF: 0.1; filterBeta: 10; warmupTolerance: 2; missTolerance: 10; uiScanning: none; uiLoading: none;"
+    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; filterMinCF: 0.04; filterBeta: 50; warmupTolerance: 3; missTolerance: 3; maxTrack: 1; uiScanning: none; uiLoading: none;"
     embedded
     color-space="sRGB"
     renderer="alpha: true; antialias: true; colorManagement: true; physicallyCorrectLights: true"
@@ -335,11 +335,16 @@
       const checkCamera = setInterval(() => {
         const videoEl = document.querySelector('video[mindar-video]');
         
-        if (videoEl && videoEl.readyState >= 2 && videoEl.currentTime > 0) {
-          console.log('✅ Kamera-Feed läuft!');
-          clearInterval(checkCamera);
-          loading.classList.remove('active');
-          infoBanner.style.display = 'block';
+        if (videoEl) {
+          console.log(`📹 Kamera-Check: readyState=${videoEl.readyState}, currentTime=${videoEl.currentTime.toFixed(2)}, videoWidth=${videoEl.videoWidth}`);
+          
+          // Prüfe ob Video-Daten geladen sind (readyState >= 2 ODER videoWidth > 0)
+          if (videoEl.readyState >= 2 || videoEl.videoWidth > 0) {
+            console.log('✅ Kamera-Feed bereit!');
+            clearInterval(checkCamera);
+            loading.classList.remove('active');
+            infoBanner.style.display = 'block';
+          }
         }
       }, 100);
     });
