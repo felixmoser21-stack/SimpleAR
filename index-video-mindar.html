@@ -246,19 +246,19 @@
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
     
     <!-- Target Entity (Marker) -->
-    <a-entity mindar-image-target="targetIndex: 0">
-      
-      <!-- Video halb so groß - mit Animation-Mixer für Stabilität -->
-      <a-video 
-        src="#myVideo" 
-        width="1.266" 
-        height="2.25" 
-        position="0 0 0.001"
-        rotation="0 0 0"
-        material="shader: flat; side: double"
-        animation-mixer></a-video>
-      
+    <a-entity id="markerTarget" mindar-image-target="targetIndex: 0">
     </a-entity>
+    
+    <!-- Video separat - wird manuell positioniert -->
+    <a-video 
+      id="videoPlane"
+      src="#myVideo" 
+      width="1.266" 
+      height="2.25" 
+      position="0 0 0"
+      rotation="0 0 0"
+      visible="false"
+      material="shader: flat; side: double"></a-video>
   </a-scene>
 
   <script>
@@ -371,32 +371,37 @@
       console.log('✅ MindAR renderstart Event');
     });
     
-    // Zusätzlicher Smoothing-Filter für Position und Rotation
-    let smoothedPosition = new THREE.Vector3();
-    let smoothedRotation = new THREE.Quaternion();
-    let isTracking = false;
-    const smoothingFactor = 0.01; // Extrem niedrig = butterweich (1% pro Frame)
-    const positionDeadzone = 0.001; // Ignoriere Bewegungen unter 1mm
-    const rotationDeadzone = 0.001; // Ignoriere Rotationen unter 0.001 rad
+    // Video-Plane komplett vom Marker entkoppeln - "Freeze" Position
+    let frozenPosition = new THREE.Vector3();
+    let frozenRotation = new THREE.Quaternion();
+    let isLocked = false;
     
-    // Target Found/Lost Events
-    const target = document.querySelector('[mindar-image-target]');
+    const markerTarget = document.getElementById('markerTarget');
+    const videoPlane = document.getElementById('videoPlane');
     
-    if (target) {
-      target.addEventListener('targetFound', () => {
+    if (markerTarget) {
+      markerTarget.addEventListener('targetFound', () => {
         console.log('✅ Marker erkannt!');
         infoBanner.textContent = '🎬 Video startet...';
         infoBanner.style.background = 'rgba(76, 195, 217, 0.8)';
-        isTracking = true;
         
-        // Initiale Position setzen
-        const videoPlane = document.querySelector('a-video');
-        if (videoPlane && videoPlane.object3D) {
-          smoothedPosition.copy(videoPlane.object3D.position);
-          smoothedRotation.copy(videoPlane.object3D.quaternion);
+        if (!isLocked && videoPlane) {
+          // Hole die Marker-Position und "friere" sie ein
+          markerTarget.object3D.updateMatrixWorld(true);
+          markerTarget.object3D.getWorldPosition(frozenPosition);
+          markerTarget.object3D.getWorldQuaternion(frozenRotation);
+          
+          // Setze Video auf diese Position
+          videoPlane.object3D.position.copy(frozenPosition);
+          videoPlane.object3D.position.z += 0.001; // Leicht vor dem Marker
+          videoPlane.object3D.quaternion.copy(frozenRotation);
+          videoPlane.object3D.visible = true;
+          
+          isLocked = true;
+          console.log('🔒 Video-Position eingefroren:', frozenPosition);
         }
         
-        // Video abspielen (mit Fallback für iOS)
+        // Video abspielen
         if (video) {
           video.play().then(() => {
             videoPlaying = true;
@@ -409,56 +414,21 @@
         }
       });
       
-      target.addEventListener('targetLost', () => {
+      markerTarget.addEventListener('targetLost', () => {
         console.log('❌ Marker verloren');
         infoBanner.textContent = '📷 Richte die Kamera auf den Marker';
         infoBanner.style.background = 'rgba(0, 0, 0, 0.7)';
-        isTracking = false;
         
-        // Video pausieren und zurückspulen
+        // Video bleibt an gefrorener Position (isLocked bleibt true)
+        // Optional: Video pausieren
         if (video) {
           video.pause();
           video.currentTime = 0;
           videoPlaying = false;
-          console.log('⏸️ Video pausiert und zurückgesetzt');
+          console.log('⏸️ Video pausiert');
         }
       });
     }
-    
-    // Render-Loop für zusätzliche Glättung mit Deadzone
-    function smoothUpdate() {
-      if (isTracking) {
-        const videoPlane = document.querySelector('a-video');
-        if (videoPlane && videoPlane.object3D) {
-          const currentPos = videoPlane.object3D.position;
-          const currentRot = videoPlane.object3D.quaternion;
-          
-          // Prüfe ob Bewegung groß genug ist (Deadzone)
-          const positionDelta = smoothedPosition.distanceTo(currentPos);
-          const rotationDelta = smoothedRotation.angleTo(currentRot);
-          
-          if (positionDelta > positionDeadzone) {
-            // Sanfte Interpolation der Position (1% pro Frame)
-            smoothedPosition.lerp(currentPos, smoothingFactor);
-          }
-          
-          if (rotationDelta > rotationDeadzone) {
-            // Sanfte Interpolation der Rotation (1% pro Frame)
-            smoothedRotation.slerp(currentRot, smoothingFactor);
-          }
-          
-          // Wende geglättete Werte an
-          videoPlane.object3D.position.copy(smoothedPosition);
-          videoPlane.object3D.quaternion.copy(smoothedRotation);
-        }
-      }
-      requestAnimationFrame(smoothUpdate);
-    }
-    
-    // Starte Smoothing-Loop nach Scene-Load
-    arScene.addEventListener('loaded', () => {
-      smoothUpdate();
-    });
     
     // Video geladen
     if (video) {
