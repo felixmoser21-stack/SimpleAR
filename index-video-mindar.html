@@ -330,23 +330,36 @@
         }
       }
       
-      // 4. Warte auf Kamera-Feed - KEIN Timeout, warte bis es läuft
+      // 4. Warte auf Kamera-Feed mit Fallback-Timeout
       console.log('⏳ Warte auf Kamera-Feed...');
+      let cameraCheckDone = false;
+      
       const checkCamera = setInterval(() => {
         const videoEl = document.querySelector('video[mindar-video]');
         
         if (videoEl) {
-          console.log(`📹 Kamera-Check: readyState=${videoEl.readyState}, currentTime=${videoEl.currentTime.toFixed(2)}, videoWidth=${videoEl.videoWidth}`);
+          console.log(`📹 Kamera-Check: readyState=${videoEl.readyState}, videoWidth=${videoEl.videoWidth}`);
           
-          // Prüfe ob Video-Daten geladen sind (readyState >= 2 ODER videoWidth > 0)
-          if (videoEl.readyState >= 2 || videoEl.videoWidth > 0) {
+          // Prüfe ob Video-Element existiert und Daten hat
+          if (videoEl.readyState >= 1 || videoEl.videoWidth > 0) {
             console.log('✅ Kamera-Feed bereit!');
             clearInterval(checkCamera);
+            cameraCheckDone = true;
             loading.classList.remove('active');
             infoBanner.style.display = 'block';
           }
         }
       }, 100);
+      
+      // Fallback: Nach 3 Sekunden auf jeden Fall ausblenden
+      setTimeout(() => {
+        if (!cameraCheckDone) {
+          console.log('⏰ Fallback-Timeout: Loading wird ausgeblendet');
+          clearInterval(checkCamera);
+          loading.classList.remove('active');
+          infoBanner.style.display = 'block';
+        }
+      }, 3000);
     });
     
     // Renderstart Event (wird oft zu früh gefeuert)
