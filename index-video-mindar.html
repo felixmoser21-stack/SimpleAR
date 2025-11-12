@@ -190,13 +190,13 @@
     📷 Richte die Kamera auf den Marker
   </div>
 
-  <!-- MindAR Scene - Balancierte Filter für Stabilität -->
+  <!-- MindAR Scene - Optimierte Filter für minimales Jittering -->
   <a-scene
     id="arScene"
-    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.01; filterBeta: 100; warmupTolerance: 3; missTolerance: 3; uiScanning: none; uiLoading: none;"
+    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 10000; warmupTolerance: 5; missTolerance: 5; uiScanning: none; uiLoading: none;"
     embedded
     color-space="sRGB"
-    renderer="alpha: true; antialias: true; powerPreference: high-performance; logarithmicDepthBuffer: true; colorManagement: true; physicallyCorrectLights: false"
+    renderer="alpha: true; antialias: true; powerPreference: high-performance; logarithmicDepthBuffer: true; colorManagement: true; physicallyCorrectLights: false; sortObjects: false"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false">
     
@@ -218,22 +218,31 @@
     
     <!-- Target Entity (Marker) -->
     <a-entity id="markerTarget" mindar-image-target="targetIndex: 0">
-      <!-- Video direkt am Marker -->
-      <a-video 
-        id="videoPlane"
-        src="#myVideo" 
-        width="1.266" 
-        height="2.25" 
+      <!-- Stabilisierungs-Container mit Dämpfung -->
+      <a-entity 
+        id="smoothContainer"
         position="0 0 0"
-        rotation="0 0 0"
-        visible="false"
-        material="shader: flat; side: double; transparent: false; src: #myVideo"></a-video>
+        animation__smooth="property: position; dur: 100; easing: linear; loop: false"
+        animation__rotate="property: rotation; dur: 100; easing: linear; loop: false">
+        <!-- Video mit optimierten Einstellungen -->
+        <a-video 
+          id="videoPlane"
+          src="#myVideo" 
+          width="1.266" 
+          height="2.25" 
+          position="0 0 0.01"
+          rotation="0 0 0"
+          visible="false"
+          material="shader: flat; side: front; transparent: false; src: #myVideo; depthTest: true; depthWrite: true"></a-video>
+      </a-entity>
     </a-entity>
   </a-scene>
 
   <script>
-    // Einfachere Lösung ohne komplexe Stabilisierung
+    // Optimierte Lösung mit sanfter Dämpfung
     let videoStarted = false;
+    let lastPosition = null;
+    let lastRotation = null;
     
     const startButton = document.getElementById('startButton');
     const startOverlay = document.getElementById('startOverlay');
@@ -245,8 +254,31 @@
     let arStarted = false;
     let videoPlaying = false;
     let sceneReady = false;
-    let useStabilizedMode = false;
     let lastDetectionTime = 0;
+    
+    // Smooth-Dämpfungs-Component
+    AFRAME.registerComponent('smooth-follow', {
+      schema: {
+        factor: {default: 0.9}
+      },
+      init: function() {
+        this.targetPos = new AFRAME.THREE.Vector3();
+        this.targetRot = new AFRAME.THREE.Euler();
+      },
+      tick: function() {
+        if (!this.el.parentEl) return;
+        
+        const parent = this.el.parentEl.object3D;
+        const current = this.el.object3D;
+        
+        // Sanfte Position-Interpolation
+        this.targetPos.copy(parent.position);
+        current.position.lerp(this.targetPos, 1 - this.data.factor);
+        
+        // Sanfte Rotation-Interpolation
+        current.quaternion.slerp(parent.quaternion, 1 - this.data.factor);
+      }
+    });
     
     // Scene geladen
     arScene.addEventListener('loaded', () => {
@@ -327,30 +359,53 @@
       }, 3000);
     });
     
-    // Target Events - Vereinfachte Version
+    // Target Events mit Optimierungen
     const targetEl = document.querySelector('[mindar-image-target]');
     const videoPlane = document.getElementById('videoPlane');
+    const smoothContainer = document.getElementById('smoothContainer');
     let markerFound = false;
+    let trackingStable = false;
+    let detectionCount = 0;
     
     if (targetEl) {
       // Target gefunden
       targetEl.addEventListener('targetFound', () => {
         console.log('✅ Marker erkannt!');
         markerFound = true;
+        detectionCount++;
         
-        // Video sichtbar machen
-        if (videoPlane) {
-          videoPlane.setAttribute('visible', 'true');
-          console.log('Video sichtbar gemacht');
+        // Nach 2 Erkennungen als stabil betrachten
+        if (detectionCount >= 2) {
+          trackingStable = true;
         }
+        
+        // Video sichtbar machen (mit kleiner Verzögerung für Stabilität)
+        setTimeout(() => {
+          if (markerFound && videoPlane) {
+            videoPlane.setAttribute('visible', 'true');
+            
+            // Smooth-Follow aktivieren für sanfte Bewegung
+            if (smoothContainer && !smoothContainer.hasAttribute('smooth-follow')) {
+              smoothContainer.setAttribute('smooth-follow', 'factor: 0.85');
+            }
+            
+            console.log('Video sichtbar gemacht');
+          }
+        }, 100);
         
         infoBanner.textContent = '🎬 Video wird abgespielt...';
         infoBanner.style.background = 'rgba(76, 195, 217, 0.8)';
         
-        // Video abspielen
-        if (video && !videoPlaying) {
+        // Video abspielen (nur wenn stabil)
+        if (video && !videoPlaying && trackingStable) {
           // Wichtig: Video muss gemuted sein für Autoplay
           video.muted = true;
+          
+          // Video-Element vorbereiten
+          video.setAttribute('playsinline', '');
+          video.setAttribute('webkit-playsinline', '');
+          video.setAttribute('muted', '');
+          
           video.play().then(() => {
             videoPlaying = true;
             videoStarted = true;
@@ -367,14 +422,28 @@
               videoHeight: video.videoHeight
             });
             
-            // Material update erzwingen
-            setTimeout(() => {
+            // Material update erzwingen (mehrfach für Sicherheit)
+            const updateMaterial = () => {
               const videoMaterial = videoPlane.components.material;
-              if (videoMaterial) {
-                videoMaterial.material.map.needsUpdate = true;
+              if (videoMaterial && videoMaterial.material) {
+                if (videoMaterial.material.map) {
+                  videoMaterial.material.map.needsUpdate = true;
+                }
+                // Explizit Video-Texture setzen
+                const videoTexture = new AFRAME.THREE.VideoTexture(video);
+                videoTexture.minFilter = AFRAME.THREE.LinearFilter;
+                videoTexture.magFilter = AFRAME.THREE.LinearFilter;
+                videoTexture.format = AFRAME.THREE.RGBFormat;
+                videoMaterial.material.map = videoTexture;
+                videoMaterial.material.needsUpdate = true;
                 console.log('Video Material aktualisiert');
               }
-            }, 100);
+            };
+            
+            // Mehrfache Updates für Sicherheit
+            setTimeout(updateMaterial, 100);
+            setTimeout(updateMaterial, 500);
+            setTimeout(updateMaterial, 1000);
             
           }).catch(err => {
             console.error('❌ Video-Fehler:', err);
@@ -388,23 +457,28 @@
         console.log('⚠️ Marker verloren');
         markerFound = false;
         
-        // Video nach 2 Sekunden pausieren
+        // Video nach 3 Sekunden pausieren (mehr Toleranz)
         setTimeout(() => {
           if (!markerFound && video && videoPlaying) {
             video.pause();
-            video.currentTime = 0;
             videoPlaying = false;
             videoStarted = false;
+            trackingStable = false;
+            detectionCount = 0;
             
             if (videoPlane) {
               videoPlane.setAttribute('visible', 'false');
+            }
+            
+            if (smoothContainer) {
+              smoothContainer.removeAttribute('smooth-follow');
             }
             
             console.log('❌ Video pausiert');
             infoBanner.textContent = '📷 Richte die Kamera auf den Marker';
             infoBanner.style.background = 'rgba(0, 0, 0, 0.7)';
           }
-        }, 2000);
+        }, 3000);
       });
     }
     
