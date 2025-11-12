@@ -43,7 +43,7 @@
       background: transparent !important;
     }
     
-    /* Overlay UI */
+    /* Overlay UI - Minimalistisch */
     .overlay {
       position: fixed;
       top: 0;
@@ -51,7 +51,7 @@
       right: 0;
       bottom: 0;
       z-index: 9999;
-      background: rgba(0, 0, 0, 0.9);
+      background: #f5f5f5;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -63,35 +63,37 @@
     .overlay.hidden { display: none; }
     
     .overlay h1 {
-      color: #fff;
-      font-size: 24px;
-      margin-bottom: 20px;
+      display: none;
     }
     
     .overlay p {
-      color: #ccc;
-      font-size: 16px;
-      line-height: 1.5;
-      margin-bottom: 30px;
-      max-width: 400px;
+      display: none;
     }
     
+    /* Runder AR START Button */
     .start-button {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #9e9e9e;
       color: white;
-      border: none;
-      padding: 16px 40px;
-      font-size: 18px;
-      font-weight: 600;
-      border-radius: 50px;
+      border: 4px solid #bdbdbd;
+      width: 180px;
+      height: 180px;
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: 2px;
+      border-radius: 50%;
       cursor: pointer;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-transform: uppercase;
+      line-height: 1.2;
     }
     
     .start-button:active {
       transform: scale(0.95);
-      box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     }
     
     /* Info Banner */
@@ -148,7 +150,7 @@
   <div class="overlay" id="startOverlay">
     <h1>🦁 Willkommen im Zoo Neuwied!</h1>
     <p>Erlebe Maribus in Augmented Reality!<br><small>Powered by MindAR - Stabil & Professionell</small></p>
-    <button class="start-button" id="startButton">AR-Maribus starten</button>
+    <button class="start-button" id="startButton">AR<br>START</button>
   </div>
   
   <!-- Loading Indicator -->
@@ -176,7 +178,7 @@
     <a-assets>
       <video 
         id="myVideo" 
-        src="https://res.cloudinary.com/dh6rqjbtb/video/upload/v1762889727/WAHNSINNIG_lrokqy.mp4"
+        src="https://res.cloudinary.com/dh6rqjbtb/video/upload/Maribu_uk5lyw.mp4"
         preload="auto"
         loop="true"
         crossorigin="anonymous"
@@ -194,8 +196,8 @@
       <!-- Video halb so groß -->
       <a-video 
         src="#myVideo" 
-        width="2.46" 
-        height="1.14" 
+        width="1.266" 
+        height="2.25" 
         position="0 0 0.001"
         rotation="0 0 0"
         material="shader: flat; side: double"></a-video>
