@@ -42,13 +42,17 @@
       opacity: 1 !important;
     }
     
-    /* A-Frame Canvas transparent und darüber */
+    /* A-Frame Canvas transparent und darüber - mit GPU-Beschleunigung */
     canvas.a-canvas {
       position: fixed !important;
       inset: 0 !important;
       z-index: 1 !important;
       background: transparent !important;
       pointer-events: none !important;
+      transform: translateZ(0);
+      will-change: transform;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
     }
     
     /* MindAR Loading UI ausblenden */
@@ -218,7 +222,7 @@
   <!-- MindAR Scene mit transparentem Renderer -->
   <a-scene
     id="arScene"
-    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; filterMinCF: 1.0; filterBeta: 1000; warmupTolerance: 3; missTolerance: 3; maxTrack: 1; uiScanning: none; uiLoading: none;"
+    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; filterMinCF: 10; filterBeta: 10000; warmupTolerance: 5; missTolerance: 5; maxTrack: 1; uiScanning: none; uiLoading: none;"
     embedded
     color-space="sRGB"
     renderer="alpha: true; antialias: true; colorManagement: true; physicallyCorrectLights: true"
@@ -244,14 +248,15 @@
     <!-- Target Entity (Marker) -->
     <a-entity mindar-image-target="targetIndex: 0">
       
-      <!-- Video halb so groß -->
+      <!-- Video halb so groß - mit Animation-Mixer für Stabilität -->
       <a-video 
         src="#myVideo" 
         width="1.266" 
         height="2.25" 
         position="0 0 0.001"
         rotation="0 0 0"
-        material="shader: flat; side: double"></a-video>
+        material="shader: flat; side: double"
+        animation-mixer></a-video>
       
     </a-entity>
   </a-scene>
