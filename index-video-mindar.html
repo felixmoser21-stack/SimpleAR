@@ -247,18 +247,17 @@
     
     <!-- Target Entity (Marker) -->
     <a-entity id="markerTarget" mindar-image-target="targetIndex: 0">
+      <!-- Video im Marker, aber Position wird eingefroren -->
+      <a-video 
+        id="videoPlane"
+        src="#myVideo" 
+        width="1.266" 
+        height="2.25" 
+        position="0 0 0.001"
+        rotation="0 0 0"
+        visible="false"
+        material="shader: flat; side: double"></a-video>
     </a-entity>
-    
-    <!-- Video separat - wird manuell positioniert -->
-    <a-video 
-      id="videoPlane"
-      src="#myVideo" 
-      width="1.266" 
-      height="2.25" 
-      position="0 0 0"
-      rotation="0 0 0"
-      visible="false"
-      material="shader: flat; side: double"></a-video>
   </a-scene>
 
   <script>
@@ -371,34 +370,32 @@
       console.log('✅ MindAR renderstart Event');
     });
     
-    // Video-Plane komplett vom Marker entkoppeln - "Freeze" Position
+    // Video-Position einfrieren nach erstem targetFound
     let frozenPosition = new THREE.Vector3();
     let frozenRotation = new THREE.Quaternion();
+    let frozenScale = new THREE.Vector3();
     let isLocked = false;
     
     const markerTarget = document.getElementById('markerTarget');
     const videoPlane = document.getElementById('videoPlane');
     
-    if (markerTarget) {
+    if (markerTarget && videoPlane) {
       markerTarget.addEventListener('targetFound', () => {
         console.log('✅ Marker erkannt!');
         infoBanner.textContent = '🎬 Video startet...';
         infoBanner.style.background = 'rgba(76, 195, 217, 0.8)';
         
-        if (!isLocked && videoPlane) {
-          // Hole die Marker-Position und "friere" sie ein
-          markerTarget.object3D.updateMatrixWorld(true);
-          markerTarget.object3D.getWorldPosition(frozenPosition);
-          markerTarget.object3D.getWorldQuaternion(frozenRotation);
-          
-          // Setze Video auf diese Position
-          videoPlane.object3D.position.copy(frozenPosition);
-          videoPlane.object3D.position.z += 0.001; // Leicht vor dem Marker
-          videoPlane.object3D.quaternion.copy(frozenRotation);
-          videoPlane.object3D.visible = true;
+        // Video sichtbar machen
+        videoPlane.object3D.visible = true;
+        
+        if (!isLocked) {
+          // Speichere die initiale lokale Position (relativ zum Marker)
+          frozenPosition.copy(videoPlane.object3D.position);
+          frozenRotation.copy(videoPlane.object3D.quaternion);
+          frozenScale.copy(videoPlane.object3D.scale);
           
           isLocked = true;
-          console.log('🔒 Video-Position eingefroren:', frozenPosition);
+          console.log('🔒 Video-Position eingefroren (lokal):', frozenPosition);
         }
         
         // Video abspielen
@@ -419,8 +416,7 @@
         infoBanner.textContent = '📷 Richte die Kamera auf den Marker';
         infoBanner.style.background = 'rgba(0, 0, 0, 0.7)';
         
-        // Video bleibt an gefrorener Position (isLocked bleibt true)
-        // Optional: Video pausieren
+        // Video pausieren
         if (video) {
           video.pause();
           video.currentTime = 0;
@@ -429,6 +425,22 @@
         }
       });
     }
+    
+    // Render-Loop: Halte Position konstant
+    function freezePosition() {
+      if (isLocked && videoPlane) {
+        // Erzwinge die gefrorene Position in jedem Frame
+        videoPlane.object3D.position.copy(frozenPosition);
+        videoPlane.object3D.quaternion.copy(frozenRotation);
+        videoPlane.object3D.scale.copy(frozenScale);
+      }
+      requestAnimationFrame(freezePosition);
+    }
+    
+    // Starte Freeze-Loop
+    arScene.addEventListener('loaded', () => {
+      freezePosition();
+    });
     
     // Video geladen
     if (video) {
