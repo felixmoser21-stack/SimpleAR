@@ -321,20 +321,42 @@
       }, 3000);
     });
     
-    // Target Events
-    const markerTarget = document.getElementById('markerTarget');
+    // Target Events mit "Vom Anker lösen"-Logik
+    const targetEl = document.querySelector('[mindar-image-target]');
+    const videoEl = targetEl.querySelector('a-video');
+    let anchored = false;
     
-    if (markerTarget) {
-      markerTarget.addEventListener('targetFound', () => {
+    if (targetEl && videoEl) {
+      targetEl.addEventListener('targetFound', () => {
         console.log('✅ Marker erkannt!');
         infoBanner.textContent = '🎬 Video startet...';
         infoBanner.style.background = 'rgba(76, 195, 217, 0.8)';
         
+        if (!anchored) {
+          // Weltpose sichern
+          const obj3D = videoEl.object3D;
+          obj3D.updateMatrixWorld(true);
+          const p = new THREE.Vector3();
+          const q = new THREE.Quaternion();
+          const s = new THREE.Vector3();
+          obj3D.matrixWorld.decompose(p, q, s);
+          
+          // Detach vom Anchor - hängt das Mesh an die Scene
+          videoEl.sceneEl.object3D.add(obj3D);
+          obj3D.position.copy(p);
+          obj3D.quaternion.copy(q);
+          obj3D.scale.copy(s);
+          
+          anchored = true;
+          console.log('🔒 Video vom Anker gelöst - Position eingefroren');
+        }
+        
+        // Video abspielen
         if (video) {
           video.play().then(() => {
             videoPlaying = true;
             console.log('🎬 Video läuft');
-            infoBanner.textContent = '✅ Video läuft!';
+            infoBanner.textContent = '�� Video läuft!';
           }).catch(err => {
             console.error('Video-Fehler:', err);
             infoBanner.textContent = '⚠️ Video-Fehler';
@@ -342,11 +364,35 @@
         }
       });
       
-      markerTarget.addEventListener('targetLost', () => {
+      // Weiche Re-Korrektur (wenn Marker sichtbar) - 5% Vision Update
+      targetEl.addEventListener('targetFound', () => {
+        if (!anchored) return;
+        
+        function updateLoop() {
+          if (!anchored) return;
+          
+          const g = targetEl.object3D;
+          g.updateMatrixWorld(true);
+          const pV = new THREE.Vector3();
+          const qV = new THREE.Quaternion();
+          const sV = new THREE.Vector3();
+          g.matrixWorld.decompose(pV, qV, sV);
+          
+          const o = videoEl.object3D;
+          o.position.lerp(pV, 0.05);
+          o.quaternion.slerp(qV, 0.05);
+          
+          requestAnimationFrame(updateLoop);
+        }
+        updateLoop();
+      });
+      
+      targetEl.addEventListener('targetLost', () => {
         console.log('❌ Marker verloren');
         infoBanner.textContent = '📷 Richte die Kamera auf den Marker';
         infoBanner.style.background = 'rgba(0, 0, 0, 0.7)';
         
+        // Video pausieren
         if (video) {
           video.pause();
           video.currentTime = 0;
