@@ -222,10 +222,10 @@
   <!-- MindAR Scene mit transparentem Renderer -->
   <a-scene
     id="arScene"
-    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; filterMinCF: 10; filterBeta: 10000; warmupTolerance: 5; missTolerance: 5; maxTrack: 1; uiScanning: none; uiLoading: none;"
+    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.06; filterBeta: 70; warmupTolerance: 3; missTolerance: 2; uiScanning: none; uiLoading: none;"
     embedded
     color-space="sRGB"
-    renderer="alpha: true; antialias: true; colorManagement: true; physicallyCorrectLights: true"
+    renderer="alpha: true; antialias: false; powerPreference: high-performance; logarithmicDepthBuffer: true; colorManagement: true"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false">
     
@@ -247,13 +247,13 @@
     
     <!-- Target Entity (Marker) -->
     <a-entity id="markerTarget" mindar-image-target="targetIndex: 0">
-      <!-- Video im Marker, aber Position wird eingefroren -->
+      <!-- Video im Marker -->
       <a-video 
         id="videoPlane"
         src="#myVideo" 
         width="1.266" 
         height="2.25" 
-        position="0 0 0.001"
+        position="0 0 0.003"
         rotation="0 0 0"
         visible="false"
         material="shader: flat; side: double"></a-video>
@@ -370,12 +370,8 @@
       console.log('✅ MindAR renderstart Event');
     });
     
-    // Video-Position einfrieren nach erstem targetFound
-    let frozenPosition = new THREE.Vector3();
-    let frozenRotation = new THREE.Quaternion();
-    let frozenScale = new THREE.Vector3();
-    let isLocked = false;
-    
+    // "Once-Lock & Weich nachführen" - Optimale Stabilität
+    let anchored = false;
     const markerTarget = document.getElementById('markerTarget');
     const videoPlane = document.getElementById('videoPlane');
     
@@ -388,14 +384,23 @@
         // Video sichtbar machen
         videoPlane.object3D.visible = true;
         
-        if (!isLocked) {
-          // Speichere die initiale lokale Position (relativ zum Marker)
-          frozenPosition.copy(videoPlane.object3D.position);
-          frozenRotation.copy(videoPlane.object3D.quaternion);
-          frozenScale.copy(videoPlane.object3D.scale);
+        if (!anchored) {
+          // Weltpose sichern
+          const obj3D = videoPlane.object3D;
+          obj3D.updateMatrixWorld(true);
+          const p = new THREE.Vector3();
+          const q = new THREE.Quaternion();
+          const s = new THREE.Vector3();
+          obj3D.matrixWorld.decompose(p, q, s);
           
-          isLocked = true;
-          console.log('🔒 Video-Position eingefroren (lokal):', frozenPosition);
+          // Detach vom Anchor - hänge an Scene
+          arScene.object3D.add(obj3D);
+          obj3D.position.copy(p);
+          obj3D.quaternion.copy(q);
+          obj3D.scale.copy(s);
+          
+          anchored = true;
+          console.log('🔒 Video von Marker gelöst und an Scene gehängt');
         }
         
         // Video abspielen
@@ -421,25 +426,36 @@
           video.pause();
           video.currentTime = 0;
           videoPlaying = false;
-          console.log('⏸️ Video pausiert');
+          console.log('⏸��� Video pausiert');
         }
       });
     }
     
-    // Render-Loop: Halte Position konstant
-    function freezePosition() {
-      if (isLocked && videoPlane) {
-        // Erzwinge die gefrorene Position in jedem Frame
-        videoPlane.object3D.position.copy(frozenPosition);
-        videoPlane.object3D.quaternion.copy(frozenRotation);
-        videoPlane.object3D.scale.copy(frozenScale);
+    // Weiche Re-Korrektur (5% pro Frame) wenn Marker sichtbar
+    function smoothUpdate() {
+      if (anchored && markerTarget && videoPlane) {
+        const markerObj = markerTarget.object3D;
+        
+        // Prüfe ob Marker sichtbar ist
+        if (markerObj.visible) {
+          markerObj.updateMatrixWorld(true);
+          const pV = new THREE.Vector3();
+          const qV = new THREE.Quaternion();
+          const sV = new THREE.Vector3();
+          markerObj.matrixWorld.decompose(pV, qV, sV);
+          
+          const obj = videoPlane.object3D;
+          // Weiche Interpolation: 5% Vision, 95% aktuell
+          obj.position.lerp(pV, 0.05);
+          obj.quaternion.slerp(qV, 0.05);
+        }
       }
-      requestAnimationFrame(freezePosition);
+      requestAnimationFrame(smoothUpdate);
     }
     
-    // Starte Freeze-Loop
+    // Starte Smooth-Update-Loop
     arScene.addEventListener('loaded', () => {
-      freezePosition();
+      smoothUpdate();
     });
     
     // Video geladen
