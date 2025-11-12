@@ -246,18 +246,27 @@
       smoothTolerance="0.01"
       smoothThreshold="5">
       
-      <a-entity id="videoContainer" position="0 0 0">
-        <!-- Plane für Video -->
-        <a-plane
-          id="videoPlane"
-          width="1.6"
-          height="2.4"
-          position="0 0 0"
-          rotation="-90 0 0"
-          visible="false"
-          material="shader: flat; side: double; src: #zooVideo">
-        </a-plane>
-      </a-entity>
+      <!-- Video direkt ohne Container für bessere Kompatibilität -->
+      <a-video
+        id="videoPlane"
+        src="#zooVideo"
+        width="1.6"
+        height="2.4"
+        position="0 0 0"
+        rotation="-90 0 0"
+        visible="false">
+      </a-video>
+      
+      <!-- Test-Box zum Debuggen (wird angezeigt wenn Video nicht funktioniert) -->
+      <a-box
+        id="testBox"
+        position="0 0.25 0"
+        rotation="0 45 0"
+        scale="0.5 0.5 0.5"
+        color="#4CC3D9"
+        visible="false"
+        animation="property: rotation; to: 0 405 0; loop: true; dur: 3000">
+      </a-box>
     </a-nft>
 
     <a-entity camera></a-entity>
@@ -408,46 +417,89 @@
       infoBanner.textContent = '✅ Marker erkannt!';
       infoBanner.style.background = 'rgba(76, 195, 217, 0.9)';
       
+      // Test-Box anzeigen (zum Debuggen)
+      const testBox = document.getElementById('testBox');
+      if (testBox && debugMode) {
+        testBox.setAttribute('visible', 'true');
+        log('Test-Box sichtbar (Debug)');
+      }
+      
       // Video sichtbar machen
       if (videoPlane) {
         videoPlane.setAttribute('visible', 'true');
-        log('Video sichtbar gemacht');
+        log('Video-Element sichtbar gemacht');
       }
       
-      // Video abspielen
+      // Video abspielen mit mehreren Versuchen
       if (!videoPlaying && video) {
+        // Sicherstellen dass Video bereit ist
         video.muted = true;
-        video.play().then(() => {
-          videoPlaying = true;
-          log('🎬 Video läuft');
-          infoBanner.textContent = '🎬 Video läuft!';
-          
-          // Force video texture update
-          setTimeout(() => {
-            if (videoPlane) {
-              // Recreate material with video
-              videoPlane.setAttribute('material', {
-                shader: 'flat',
-                src: '#zooVideo',
-                side: 'double'
-              });
-              
-              // Force texture update
-              const mesh = videoPlane.getObject3D('mesh');
-              if (mesh && mesh.material && mesh.material.map) {
-                mesh.material.map.needsUpdate = true;
-                log('Video texture updated');
+        video.setAttribute('muted', 'true');
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        
+        const playVideo = () => {
+          video.play().then(() => {
+            videoPlaying = true;
+            log('🎬 Video läuft');
+            infoBanner.textContent = '🎬 Video läuft!';
+            
+            // Mehrfache Material-Updates für Sicherheit
+            const updateVideoTexture = () => {
+              // Methode 1: Material neu setzen
+              if (videoPlane) {
+                videoPlane.setAttribute('material', 'src', '#zooVideo');
+                videoPlane.setAttribute('material', 'shader', 'flat');
+                videoPlane.setAttribute('material', 'side', 'double');
               }
-            }
-          }, 500);
-          
-        }).catch(err => {
-          log('Video-Fehler: ' + err.message);
-          infoBanner.textContent = '⚠️ Video-Fehler';
-          // Retry
-          video.muted = true;
-          video.play();
-        });
+              
+              // Methode 2: Direkte THREE.js Manipulation
+              const mesh = videoPlane.getObject3D('mesh');
+              if (mesh && mesh.material) {
+                // Video-Texture erstellen
+                const videoTexture = new THREE.VideoTexture(video);
+                videoTexture.minFilter = THREE.LinearFilter;
+                videoTexture.magFilter = THREE.LinearFilter;
+                videoTexture.format = THREE.RGBFormat;
+                videoTexture.needsUpdate = true;
+                
+                // Material aktualisieren
+                mesh.material.map = videoTexture;
+                mesh.material.needsUpdate = true;
+                
+                log('Video-Texture direkt aktualisiert');
+              }
+            };
+            
+            // Updates zu verschiedenen Zeitpunkten
+            setTimeout(updateVideoTexture, 100);
+            setTimeout(updateVideoTexture, 500);
+            setTimeout(updateVideoTexture, 1000);
+            setTimeout(updateVideoTexture, 2000);
+            
+          }).catch(err => {
+            log('Video-Play-Fehler: ' + err.message);
+            infoBanner.textContent = '⚠️ Video-Fehler - Retry...';
+            
+            // Nochmal versuchen nach kurzer Pause
+            setTimeout(() => {
+              video.muted = true;
+              video.play().catch(e => {
+                log('Video-Retry fehlgeschlagen: ' + e.message);
+                infoBanner.textContent = '⚠️ Video kann nicht abgespielt werden';
+                
+                // Als Fallback Test-Box zeigen
+                if (testBox) {
+                  testBox.setAttribute('visible', 'true');
+                  infoBanner.textContent = '📦 Test-Box wird angezeigt (Video-Fehler)';
+                }
+              });
+            }, 1000);
+          });
+        };
+        
+        // Video starten
+        playVideo();
       }
     });
     
