@@ -218,7 +218,7 @@
   <!-- MindAR Scene mit transparentem Renderer -->
   <a-scene
     id="arScene"
-    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; filterMinCF: 0.04; filterBeta: 50; warmupTolerance: 3; missTolerance: 3; maxTrack: 1; uiScanning: none; uiLoading: none;"
+    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; filterMinCF: 1.0; filterBeta: 1000; warmupTolerance: 3; missTolerance: 3; maxTrack: 1; uiScanning: none; uiLoading: none;"
     embedded
     color-space="sRGB"
     renderer="alpha: true; antialias: true; colorManagement: true; physicallyCorrectLights: true"
@@ -232,7 +232,6 @@
         src="https://res.cloudinary.com/dh6rqjbtb/video/upload/Maribu_uk5lyw.mp4"
         preload="auto"
         loop="true"
-        muted
         crossorigin="anonymous"
         playsinline
         webkit-playsinline>
@@ -384,16 +383,7 @@
             infoBanner.textContent = '✅ Video läuft!';
           }).catch(err => {
             console.error('Video-Fehler:', err);
-            // Zweiter Versuch mit muted
-            video.muted = true;
-            video.play().then(() => {
-              videoPlaying = true;
-              console.log('🎬 Video wird stumm abgespielt');
-              infoBanner.textContent = '✅ Video läuft (stumm)';
-            }).catch(err2 => {
-              console.error('Video-Fehler (2. Versuch):', err2);
-              infoBanner.textContent = '⚠️ Video konnte nicht gestartet werden';
-            });
+            infoBanner.textContent = '⚠️ Video konnte nicht gestartet werden';
           });
         }
       });
