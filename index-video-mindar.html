@@ -375,7 +375,9 @@
     let smoothedPosition = new THREE.Vector3();
     let smoothedRotation = new THREE.Quaternion();
     let isTracking = false;
-    const smoothingFactor = 0.05; // Sehr niedrig = sehr glatt
+    const smoothingFactor = 0.01; // Extrem niedrig = butterweich (1% pro Frame)
+    const positionDeadzone = 0.001; // Ignoriere Bewegungen unter 1mm
+    const rotationDeadzone = 0.001; // Ignoriere Rotationen unter 0.001 rad
     
     // Target Found/Lost Events
     const target = document.querySelector('[mindar-image-target]');
@@ -423,17 +425,30 @@
       });
     }
     
-    // Render-Loop für zusätzliche Glättung
+    // Render-Loop für zusätzliche Glättung mit Deadzone
     function smoothUpdate() {
       if (isTracking) {
         const videoPlane = document.querySelector('a-video');
         if (videoPlane && videoPlane.object3D) {
-          // Sanfte Interpolation der Position
-          smoothedPosition.lerp(videoPlane.object3D.position, smoothingFactor);
-          videoPlane.object3D.position.copy(smoothedPosition);
+          const currentPos = videoPlane.object3D.position;
+          const currentRot = videoPlane.object3D.quaternion;
           
-          // Sanfte Interpolation der Rotation
-          smoothedRotation.slerp(videoPlane.object3D.quaternion, smoothingFactor);
+          // Prüfe ob Bewegung groß genug ist (Deadzone)
+          const positionDelta = smoothedPosition.distanceTo(currentPos);
+          const rotationDelta = smoothedRotation.angleTo(currentRot);
+          
+          if (positionDelta > positionDeadzone) {
+            // Sanfte Interpolation der Position (1% pro Frame)
+            smoothedPosition.lerp(currentPos, smoothingFactor);
+          }
+          
+          if (rotationDelta > rotationDeadzone) {
+            // Sanfte Interpolation der Rotation (1% pro Frame)
+            smoothedRotation.slerp(currentRot, smoothingFactor);
+          }
+          
+          // Wende geglättete Werte an
+          videoPlane.object3D.position.copy(smoothedPosition);
           videoPlane.object3D.quaternion.copy(smoothedRotation);
         }
       }
