@@ -285,29 +285,12 @@
     // Start Button Click - Kamera-Berechtigung und AR starten
     startButton.addEventListener('click', async () => {
       startOverlay.classList.add('hidden');
+      loading.classList.add('active');
       arStarted = true;
       
-      // 1. Kamera-Berechtigung explizit anfordern
-      try {
-        console.log('📷 Fordere Kamera-Berechtigung an...');
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'environment' },
-          audio: false 
-        });
-        console.log('✅ Kamera-Berechtigung erteilt');
-        // Stream sofort wieder stoppen (MindAR startet eigenen Stream)
-        stream.getTracks().forEach(track => track.stop());
-      } catch (err) {
-        console.error('❌ Kamera-Berechtigung verweigert:', err);
-        alert('Kamera-Zugriff erforderlich! Bitte erlaube den Kamera-Zugriff und lade die Seite neu.');
-        startOverlay.classList.remove('hidden');
-        return;
-      }
+      console.log('🚀 AR-Start initiiert');
       
-      // 2. Loading anzeigen
-      loading.classList.add('active');
-      
-      // 3. Video initial abspielen und pausieren (iOS-Workaround)
+      // 1. Video initial abspielen und pausieren (iOS-Workaround)
       try {
         await video.play();
         video.pause();
@@ -316,37 +299,56 @@
         console.warn('Video-Init-Warnung:', err);
       }
       
-      // 4. MindAR starten
+      // 2. MindAR starten (startet automatisch Kamera mit Permission-Request)
       if (sceneReady) {
         const sceneEl = document.querySelector('a-scene');
         if (sceneEl.systems['mindar-image-system']) {
-          sceneEl.systems['mindar-image-system'].start();
-          console.log('✅ MindAR gestartet');
+          try {
+            await sceneEl.systems['mindar-image-system'].start();
+            console.log('✅ MindAR gestartet');
+          } catch (err) {
+            console.error('❌ MindAR-Start Fehler:', err);
+            alert('Kamera-Zugriff erforderlich! Bitte erlaube den Kamera-Zugriff und lade die Seite neu.');
+            loading.classList.remove('active');
+            startOverlay.classList.remove('hidden');
+            return;
+          }
         }
       }
       
-      // 5. Warte auf Kamera-Feed (max 3 Sekunden)
+      // 3. Warte auf Kamera-Feed - prüfe ob Video wirklich läuft
+      console.log('⏳ Warte auf Kamera-Feed...');
       let cameraReady = false;
+      let checkCount = 0;
+      const maxChecks = 100; // 10 Sekunden max
+      
       const checkCamera = setInterval(() => {
+        checkCount++;
         const videoEl = document.querySelector('video[mindar-video]');
-        if (videoEl && videoEl.readyState >= 2) {
-          console.log('✅ Kamera-Feed bereit');
+        
+        if (videoEl) {
+          console.log(`📹 Kamera-Status: readyState=${videoEl.readyState}, currentTime=${videoEl.currentTime.toFixed(2)}`);
+          
+          // Prüfe ob Video wirklich läuft (readyState >= 2 UND currentTime > 0)
+          if (videoEl.readyState >= 2 && videoEl.currentTime > 0) {
+            console.log('✅ Kamera-Feed läuft!');
+            clearInterval(checkCamera);
+            cameraReady = true;
+            loading.classList.remove('active');
+            infoBanner.style.display = 'block';
+          }
+        }
+        
+        // Timeout nach 10 Sekunden
+        if (checkCount >= maxChecks && !cameraReady) {
+          console.warn('⚠️ Kamera-Feed Timeout nach 10s');
           clearInterval(checkCamera);
-          cameraReady = true;
           loading.classList.remove('active');
           infoBanner.style.display = 'block';
+          infoBanner.textContent = '⚠️ Kamera-Start verzögert - bitte warten';
+          infoBanner.style.background = 'rgba(255, 165, 0, 0.8)';
         }
       }, 100);
-      
-      // Fallback: Nach 3 Sekunden auf jeden Fall ausblenden
-      setTimeout(() => {
-        if (!cameraReady) {
-          clearInterval(checkCamera);
-          loading.classList.remove('active');
-          infoBanner.style.display = 'block';
-          console.log('✅ Loading-Fallback nach 3s ausgelöst');
-        }
-      }, 3000);
     });
     
     // Renderstart Event (wird oft zu früh gefeuert)
