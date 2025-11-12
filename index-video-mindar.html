@@ -137,7 +137,7 @@
       right: 0;
       bottom: 0;
       z-index: 9998;
-      background: rgba(245, 245, 245, 0.95);
+      background: rgba(245, 245, 245, 0.475);
       backdrop-filter: blur(10px);
       display: none;
       align-items: center;
@@ -292,13 +292,34 @@
           console.log('✅ MindAR gestartet');
         }
       }
+      
+      // Loading mindestens 2 Sekunden anzeigen, dann auf Kamera-Feed warten
+      setTimeout(() => {
+        console.log('✅ Minimale Loading-Zeit abgelaufen');
+        // Warte auf ersten Frame vom Kamera-Feed
+        const checkCamera = setInterval(() => {
+          const videoEl = document.querySelector('video[mindar-video]');
+          if (videoEl && videoEl.readyState >= 2) {
+            console.log('✅ Kamera-Feed bereit');
+            clearInterval(checkCamera);
+            loading.classList.remove('active');
+            infoBanner.style.display = 'block';
+          }
+        }, 100);
+        
+        // Fallback: Nach 5 Sekunden auf jeden Fall ausblenden
+        setTimeout(() => {
+          clearInterval(checkCamera);
+          loading.classList.remove('active');
+          infoBanner.style.display = 'block';
+          console.log('✅ Loading-Fallback ausgelöst');
+        }, 5000);
+      }, 2000);
     });
     
-    // Loading ausblenden wenn MindAR bereit ist
+    // Renderstart Event (wird oft zu früh gefeuert)
     arScene.addEventListener('renderstart', () => {
-      console.log('✅ MindAR bereit - Loading ausblenden');
-      loading.classList.remove('active');
-      infoBanner.style.display = 'block';
+      console.log('✅ MindAR renderstart Event');
     });
     
     // Target Found/Lost Events
