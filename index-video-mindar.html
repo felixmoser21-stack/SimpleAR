@@ -59,7 +59,7 @@
       display: none !important;
     }
     
-    /* Overlay UI - Transparent mit Kamerafeed */
+    /* Overlay UI - Weißer Hintergrund */
     .overlay {
       position: fixed;
       top: 0;
@@ -67,8 +67,7 @@
       right: 0;
       bottom: 0;
       z-index: 9999;
-      background: rgba(245, 245, 245, 0.95);
-      backdrop-filter: blur(10px);
+      background: #f5f5f5;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -206,7 +205,7 @@
   <!-- MindAR Scene mit transparentem Renderer -->
   <a-scene
     id="arScene"
-    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: true; filterMinCF:0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5;"
+    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; filterMinCF:0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5; uiScanning: none; uiLoading: none;"
     embedded
     color-space="sRGB"
     renderer="alpha: true; antialias: true; colorManagement: true; physicallyCorrectLights: true"
@@ -255,17 +254,20 @@
     let arStarted = false;
     let videoPlaying = false;
     
+    // Kamera beim Laden starten
+    arScene.addEventListener('loaded', () => {
+      console.log('✅ Scene geladen - starte Kamera');
+      const sceneEl = document.querySelector('a-scene');
+      if (sceneEl.systems['mindar-image-system']) {
+        sceneEl.systems['mindar-image-system'].start();
+      }
+    });
+    
     // Start Button Click
     startButton.addEventListener('click', async () => {
       startOverlay.classList.add('hidden');
       loading.classList.add('active');
-      
-      // Warte auf MindAR Initialisierung
-      setTimeout(() => {
-        loading.classList.remove('active');
-        infoBanner.style.display = 'block';
-        arStarted = true;
-      }, 3000);
+      arStarted = true;
     });
     
     // MindAR Scene Events + Safari-Fix
@@ -280,8 +282,9 @@
       }
     });
     
+    // Loading ausblenden wenn MindAR bereit ist
     arScene.addEventListener('renderstart', () => {
-      console.log('✅ MindAR gestartet');
+      console.log('✅ MindAR bereit - Loading ausblenden');
       loading.classList.remove('active');
       infoBanner.style.display = 'block';
     });
