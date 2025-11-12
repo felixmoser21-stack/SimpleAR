@@ -138,7 +138,7 @@
       pointer-events: none;
     }
     
-    /* Loading Indicator - Transparent mit Kamerafeed sichtbar */
+    /* Loading Indicator - 60% transparent mit Kamerafeed sichtbar */
     .loading {
       position: fixed;
       top: 0;
@@ -146,7 +146,7 @@
       right: 0;
       bottom: 0;
       z-index: 2;
-      background: rgba(245, 245, 245, 0.475);
+      background: rgba(245, 245, 245, 0.4);
       backdrop-filter: blur(5px);
       display: none;
       align-items: center;
@@ -280,13 +280,32 @@
       }
     });
     
-    // Start Button Click - Kamera und AR starten
+    // Start Button Click - Kamera-Berechtigung und AR starten
     startButton.addEventListener('click', async () => {
       startOverlay.classList.add('hidden');
-      loading.classList.add('active');
       arStarted = true;
       
-      // Video initial abspielen und pausieren (iOS-Workaround)
+      // 1. Kamera-Berechtigung explizit anfordern
+      try {
+        console.log('📷 Fordere Kamera-Berechtigung an...');
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' },
+          audio: false 
+        });
+        console.log('✅ Kamera-Berechtigung erteilt');
+        // Stream sofort wieder stoppen (MindAR startet eigenen Stream)
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.error('❌ Kamera-Berechtigung verweigert:', err);
+        alert('Kamera-Zugriff erforderlich! Bitte erlaube den Kamera-Zugriff und lade die Seite neu.');
+        startOverlay.classList.remove('hidden');
+        return;
+      }
+      
+      // 2. Loading anzeigen
+      loading.classList.add('active');
+      
+      // 3. Video initial abspielen und pausieren (iOS-Workaround)
       try {
         await video.play();
         video.pause();
@@ -295,7 +314,7 @@
         console.warn('Video-Init-Warnung:', err);
       }
       
-      // MindAR starten
+      // 4. MindAR starten
       if (sceneReady) {
         const sceneEl = document.querySelector('a-scene');
         if (sceneEl.systems['mindar-image-system']) {
@@ -304,28 +323,28 @@
         }
       }
       
-      // Loading mindestens 2 Sekunden anzeigen, dann auf Kamera-Feed warten
+      // 5. Warte auf Kamera-Feed (max 3 Sekunden)
+      let cameraReady = false;
+      const checkCamera = setInterval(() => {
+        const videoEl = document.querySelector('video[mindar-video]');
+        if (videoEl && videoEl.readyState >= 2) {
+          console.log('✅ Kamera-Feed bereit');
+          clearInterval(checkCamera);
+          cameraReady = true;
+          loading.classList.remove('active');
+          infoBanner.style.display = 'block';
+        }
+      }, 100);
+      
+      // Fallback: Nach 3 Sekunden auf jeden Fall ausblenden
       setTimeout(() => {
-        console.log('✅ Minimale Loading-Zeit abgelaufen');
-        // Warte auf ersten Frame vom Kamera-Feed
-        const checkCamera = setInterval(() => {
-          const videoEl = document.querySelector('video[mindar-video]');
-          if (videoEl && videoEl.readyState >= 2) {
-            console.log('✅ Kamera-Feed bereit');
-            clearInterval(checkCamera);
-            loading.classList.remove('active');
-            infoBanner.style.display = 'block';
-          }
-        }, 100);
-        
-        // Fallback: Nach 5 Sekunden auf jeden Fall ausblenden
-        setTimeout(() => {
+        if (!cameraReady) {
           clearInterval(checkCamera);
           loading.classList.remove('active');
           infoBanner.style.display = 'block';
-          console.log('✅ Loading-Fallback ausgelöst');
-        }, 5000);
-      }, 2000);
+          console.log('✅ Loading-Fallback nach 3s ausgelöst');
+        }
+      }, 3000);
     });
     
     // Renderstart Event (wird oft zu früh gefeuert)
