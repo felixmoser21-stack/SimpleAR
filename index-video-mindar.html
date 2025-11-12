@@ -205,7 +205,7 @@
   <!-- MindAR Scene mit transparentem Renderer -->
   <a-scene
     id="arScene"
-    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; filterMinCF:0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5; uiScanning: none; uiLoading: none;"
+    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; filterMinCF: 0.1; filterBeta: 10; warmupTolerance: 2; missTolerance: 10; uiScanning: none; uiLoading: none;"
     embedded
     color-space="sRGB"
     renderer="alpha: true; antialias: true; colorManagement: true; physicallyCorrectLights: true"
@@ -219,6 +219,7 @@
         src="https://res.cloudinary.com/dh6rqjbtb/video/upload/Maribu_uk5lyw.mp4"
         preload="auto"
         loop="true"
+        muted
         crossorigin="anonymous"
         playsinline
         webkit-playsinline>
@@ -253,32 +254,43 @@
     
     let arStarted = false;
     let videoPlaying = false;
+    let sceneReady = false;
     
-    // Kamera beim Laden starten
-    arScene.addEventListener('loaded', () => {
-      console.log('✅ Scene geladen - starte Kamera');
-      const sceneEl = document.querySelector('a-scene');
-      if (sceneEl.systems['mindar-image-system']) {
-        sceneEl.systems['mindar-image-system'].start();
-      }
-    });
-    
-    // Start Button Click
-    startButton.addEventListener('click', async () => {
-      startOverlay.classList.add('hidden');
-      loading.classList.add('active');
-      arStarted = true;
-    });
-    
-    // MindAR Scene Events + Safari-Fix
+    // Scene geladen - aber noch nicht starten
     arScene.addEventListener('loaded', () => {
       console.log('✅ Scene geladen');
+      sceneReady = true;
       // Safari-Fix: Clear-Alpha auf 0 setzen
       const r = arScene.renderer;
       if (r.setClearAlpha) {
         r.setClearAlpha(0);
       } else {
-        r.setClearColor(0x000000, 0); // Fallback
+        r.setClearColor(0x000000, 0);
+      }
+    });
+    
+    // Start Button Click - Kamera und AR starten
+    startButton.addEventListener('click', async () => {
+      startOverlay.classList.add('hidden');
+      loading.classList.add('active');
+      arStarted = true;
+      
+      // Video initial abspielen und pausieren (iOS-Workaround)
+      try {
+        await video.play();
+        video.pause();
+        console.log('✅ Video initialisiert (iOS-Workaround)');
+      } catch (err) {
+        console.warn('Video-Init-Warnung:', err);
+      }
+      
+      // MindAR starten
+      if (sceneReady) {
+        const sceneEl = document.querySelector('a-scene');
+        if (sceneEl.systems['mindar-image-system']) {
+          sceneEl.systems['mindar-image-system'].start();
+          console.log('✅ MindAR gestartet');
+        }
       }
     });
     
@@ -298,15 +310,24 @@
         infoBanner.textContent = '🎬 Video startet...';
         infoBanner.style.background = 'rgba(76, 195, 217, 0.8)';
         
-        // Video abspielen
-        if (video && !videoPlaying) {
+        // Video abspielen (mit Fallback für iOS)
+        if (video) {
           video.play().then(() => {
             videoPlaying = true;
             console.log('🎬 Video wird abgespielt');
             infoBanner.textContent = '✅ Video läuft!';
           }).catch(err => {
             console.error('Video-Fehler:', err);
-            infoBanner.textContent = '⚠️ Video konnte nicht gestartet werden';
+            // Zweiter Versuch mit muted
+            video.muted = true;
+            video.play().then(() => {
+              videoPlaying = true;
+              console.log('🎬 Video wird stumm abgespielt');
+              infoBanner.textContent = '✅ Video läuft (stumm)';
+            }).catch(err2 => {
+              console.error('Video-Fehler (2. Versuch):', err2);
+              infoBanner.textContent = '⚠️ Video konnte nicht gestartet werden';
+            });
           });
         }
       });
@@ -316,11 +337,12 @@
         infoBanner.textContent = '📷 Richte die Kamera auf den Marker';
         infoBanner.style.background = 'rgba(0, 0, 0, 0.7)';
         
-        // Video pausieren
-        if (video && videoPlaying) {
+        // Video pausieren und zurückspulen
+        if (video) {
           video.pause();
+          video.currentTime = 0;
           videoPlaying = false;
-          console.log('⏸️ Video pausiert');
+          console.log('⏸️ Video pausiert und zurückgesetzt');
         }
       });
     }
