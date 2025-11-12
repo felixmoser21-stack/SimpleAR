@@ -113,29 +113,23 @@
       text-align: center;
     }
     
-    /* Loading Indicator */
+    /* Loading Indicator - Ausgeblendet */
     .loading {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 50;
-      color: white;
+      color: transparent;
       font-size: 16px;
       display: none;
       text-align: center;
     }
     
-    .loading.active { display: block; }
+    .loading.active { display: none; }
     
     .spinner {
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-top: 3px solid white;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 10px;
+      display: none;
     }
     
     @keyframes spin {
