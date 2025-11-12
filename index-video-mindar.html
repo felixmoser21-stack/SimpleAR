@@ -190,10 +190,10 @@
     📷 Richte die Kamera auf den Marker
   </div>
 
-  <!-- MindAR Scene - Optimierte Filter für maximale Stabilität -->
+  <!-- MindAR Scene - Balancierte Filter für Stabilität -->
   <a-scene
     id="arScene"
-    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 1000; warmupTolerance: 5; missTolerance: 5; uiScanning: none; uiLoading: none;"
+    mindar-image="imageTargetSrc: https://felixmoser21-stack.github.io/SimpleAR/ZOOMarker.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.01; filterBeta: 100; warmupTolerance: 3; missTolerance: 3; uiScanning: none; uiLoading: none;"
     embedded
     color-space="sRGB"
     renderer="alpha: true; antialias: true; powerPreference: high-performance; logarithmicDepthBuffer: true; colorManagement: true; physicallyCorrectLights: false"
@@ -218,73 +218,22 @@
     
     <!-- Target Entity (Marker) -->
     <a-entity id="markerTarget" mindar-image-target="targetIndex: 0">
-      <!-- Video Container mit Stabilisierung -->
-      <a-entity id="videoContainer" position="0 0 0">
-        <a-video 
-          id="videoPlane"
-          src="#myVideo" 
-          width="1.266" 
-          height="2.25" 
-          position="0 0 0.01"
-          rotation="0 0 0"
-          material="shader: flat; side: double; transparent: false"></a-video>
-      </a-entity>
-    </a-entity>
-    
-    <!-- Stabilisiertes Video (wird bei Erkennung aktiviert) -->
-    <a-entity id="stabilizedVideo" visible="false" position="0 0 -2">
+      <!-- Video direkt am Marker -->
       <a-video 
-        id="stabilizedVideoPlane"
+        id="videoPlane"
         src="#myVideo" 
         width="1.266" 
         height="2.25" 
         position="0 0 0"
         rotation="0 0 0"
-        material="shader: flat; side: double; transparent: false"></a-video>
+        visible="false"
+        material="shader: flat; side: double; transparent: false; src: #myVideo"></a-video>
     </a-entity>
   </a-scene>
 
   <script>
-    // Custom Component für Video-Stabilisierung
-    AFRAME.registerComponent('video-stabilizer', {
-      schema: {
-        smoothingFactor: {default: 0.8},
-        minConfidence: {default: 0.7}
-      },
-      
-      init: function() {
-        this.targetPosition = new AFRAME.THREE.Vector3();
-        this.targetQuaternion = new AFRAME.THREE.Quaternion();
-        this.currentPosition = new AFRAME.THREE.Vector3();
-        this.currentQuaternion = new AFRAME.THREE.Quaternion();
-        this.isTracking = false;
-        this.confidence = 0;
-      },
-      
-      tick: function() {
-        if (!this.isTracking) return;
-        
-        const smoothing = this.data.smoothingFactor;
-        
-        // Smooth interpolation
-        this.currentPosition.lerp(this.targetPosition, 1 - smoothing);
-        this.currentQuaternion.slerp(this.targetQuaternion, 1 - smoothing);
-        
-        // Apply smoothed transform
-        this.el.object3D.position.copy(this.currentPosition);
-        this.el.object3D.quaternion.copy(this.currentQuaternion);
-      },
-      
-      updateTarget: function(position, quaternion) {
-        this.targetPosition.copy(position);
-        this.targetQuaternion.copy(quaternion);
-        this.isTracking = true;
-      },
-      
-      stopTracking: function() {
-        this.isTracking = false;
-      }
-    });
+    // Einfachere Lösung ohne komplexe Stabilisierung
+    let videoStarted = false;
     
     const startButton = document.getElementById('startButton');
     const startOverlay = document.getElementById('startOverlay');
@@ -378,138 +327,58 @@
       }, 3000);
     });
     
-    // Stabilisierungs-System initialisieren
+    // Target Events - Vereinfachte Version
     const targetEl = document.querySelector('[mindar-image-target]');
-    const videoContainer = document.getElementById('videoContainer');
-    const stabilizedVideo = document.getElementById('stabilizedVideo');
-    
-    // Stabilizer Component hinzufügen
-    if (videoContainer) {
-      videoContainer.setAttribute('video-stabilizer', 'smoothingFactor: 0.9; minConfidence: 0.6');
-    }
-    
-    // Position Buffer für Glättung
-    const positionBuffer = [];
-    const rotationBuffer = [];
-    const bufferSize = 10;
-    
-    function addToBuffer(buffer, value, maxSize) {
-      buffer.push(value);
-      if (buffer.length > maxSize) {
-        buffer.shift();
-      }
-    }
-    
-    function getAverageVector3(buffer) {
-      if (buffer.length === 0) return new AFRAME.THREE.Vector3();
-      const avg = new AFRAME.THREE.Vector3();
-      buffer.forEach(v => avg.add(v));
-      avg.divideScalar(buffer.length);
-      return avg;
-    }
-    
-    function getAverageQuaternion(buffer) {
-      if (buffer.length === 0) return new AFRAME.THREE.Quaternion();
-      // Simplified quaternion averaging
-      const first = buffer[0];
-      let x = 0, y = 0, z = 0, w = 0;
-      buffer.forEach(q => {
-        // Ensure quaternions are in same hemisphere
-        const dot = first.x * q.x + first.y * q.y + first.z * q.z + first.w * q.w;
-        const sign = dot < 0 ? -1 : 1;
-        x += sign * q.x;
-        y += sign * q.y;
-        z += sign * q.z;
-        w += sign * q.w;
-      });
-      const avg = new AFRAME.THREE.Quaternion(x, y, z, w);
-      avg.normalize();
-      return avg;
-    }
-    
-    // Stabilized tracking mode
-    let trackingMode = 'direct'; // 'direct' oder 'stabilized'
-    let markerLostCount = 0;
-    let firstDetection = true;
-    let worldPosition = new AFRAME.THREE.Vector3();
-    let worldQuaternion = new AFRAME.THREE.Quaternion();
-    let worldScale = new AFRAME.THREE.Vector3(1, 1, 1);
+    const videoPlane = document.getElementById('videoPlane');
+    let markerFound = false;
     
     if (targetEl) {
       // Target gefunden
       targetEl.addEventListener('targetFound', () => {
         console.log('✅ Marker erkannt!');
-        lastDetectionTime = Date.now();
-        markerLostCount = 0;
+        markerFound = true;
         
-        // Get world transform
-        const markerObj = targetEl.object3D;
-        markerObj.updateMatrixWorld(true);
-        
-        if (firstDetection) {
-          // Erste Erkennung - Position speichern
-          markerObj.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
-          firstDetection = false;
-          
-          // Stabilized video setup
-          if (stabilizedVideo) {
-            const camera = document.querySelector('a-camera').object3D;
-            camera.updateMatrixWorld(true);
-            
-            // Position relativ zur Kamera berechnen
-            const cameraPos = new AFRAME.THREE.Vector3();
-            camera.getWorldPosition(cameraPos);
-            
-            // Video 2 Meter vor der Kamera platzieren
-            const direction = new AFRAME.THREE.Vector3(0, 0, -2);
-            direction.applyQuaternion(camera.quaternion);
-            const videoPos = cameraPos.add(direction);
-            
-            stabilizedVideo.object3D.position.copy(videoPos);
-            stabilizedVideo.object3D.quaternion.copy(worldQuaternion);
-          }
-        } else {
-          // Update mit Glättung
-          const newPos = new AFRAME.THREE.Vector3();
-          const newQuat = new AFRAME.THREE.Quaternion();
-          const newScale = new AFRAME.THREE.Vector3();
-          markerObj.matrixWorld.decompose(newPos, newQuat, newScale);
-          
-          // Buffer update
-          addToBuffer(positionBuffer, newPos.clone(), bufferSize);
-          addToBuffer(rotationBuffer, newQuat.clone(), bufferSize);
-          
-          // Smooth update
-          const smoothPos = getAverageVector3(positionBuffer);
-          const smoothQuat = getAverageQuaternion(rotationBuffer);
-          
-          // Exponential smoothing
-          worldPosition.lerp(smoothPos, 0.3);
-          worldQuaternion.slerp(smoothQuat, 0.3);
+        // Video sichtbar machen
+        if (videoPlane) {
+          videoPlane.setAttribute('visible', 'true');
+          console.log('Video sichtbar gemacht');
         }
         
-        // Update stabilizer component
-        const stabilizer = videoContainer.components['video-stabilizer'];
-        if (stabilizer) {
-          stabilizer.updateTarget(worldPosition, worldQuaternion);
-        }
-        
-        infoBanner.textContent = '🎬 Video läuft';
+        infoBanner.textContent = '🎬 Video wird abgespielt...';
         infoBanner.style.background = 'rgba(76, 195, 217, 0.8)';
         
         // Video abspielen
         if (video && !videoPlaying) {
+          // Wichtig: Video muss gemuted sein für Autoplay
+          video.muted = true;
           video.play().then(() => {
             videoPlaying = true;
-            console.log('🎬 Video gestartet');
-          }).catch(err => {
-            console.error('Video-Fehler:', err);
-            // Retry with muted video
-            video.muted = true;
-            video.play().then(() => {
-              videoPlaying = true;
-              console.log('🎬 Video gestartet (muted)');
+            videoStarted = true;
+            console.log('🎬 Video läuft');
+            infoBanner.textContent = '🎬 Video läuft!';
+            
+            // Debug: Video-Status prüfen
+            console.log('Video Status:', {
+              paused: video.paused,
+              currentTime: video.currentTime,
+              duration: video.duration,
+              readyState: video.readyState,
+              videoWidth: video.videoWidth,
+              videoHeight: video.videoHeight
             });
+            
+            // Material update erzwingen
+            setTimeout(() => {
+              const videoMaterial = videoPlane.components.material;
+              if (videoMaterial) {
+                videoMaterial.material.map.needsUpdate = true;
+                console.log('Video Material aktualisiert');
+              }
+            }, 100);
+            
+          }).catch(err => {
+            console.error('❌ Video-Fehler:', err);
+            infoBanner.textContent = '⚠️ Video-Fehler';
           });
         }
       });
@@ -517,31 +386,25 @@
       // Target verloren
       targetEl.addEventListener('targetLost', () => {
         console.log('⚠️ Marker verloren');
-        markerLostCount++;
+        markerFound = false;
         
-        // Nach 3 Sekunden ohne Marker -> Video stoppen
+        // Video nach 2 Sekunden pausieren
         setTimeout(() => {
-          const timeSinceLost = Date.now() - lastDetectionTime;
-          if (timeSinceLost > 3000) {
-            console.log('❌ Tracking verloren - Video pausiert');
+          if (!markerFound && video && videoPlaying) {
+            video.pause();
+            video.currentTime = 0;
+            videoPlaying = false;
+            videoStarted = false;
+            
+            if (videoPlane) {
+              videoPlane.setAttribute('visible', 'false');
+            }
+            
+            console.log('❌ Video pausiert');
             infoBanner.textContent = '📷 Richte die Kamera auf den Marker';
             infoBanner.style.background = 'rgba(0, 0, 0, 0.7)';
-            
-            if (video && videoPlaying) {
-              video.pause();
-              videoPlaying = false;
-              firstDetection = true;
-              positionBuffer.length = 0;
-              rotationBuffer.length = 0;
-            }
-            
-            // Stop stabilizer
-            const stabilizer = videoContainer.components['video-stabilizer'];
-            if (stabilizer) {
-              stabilizer.stopTracking();
-            }
           }
-        }, 3000);
+        }, 2000);
       });
     }
     
