@@ -43,6 +43,22 @@
       background: transparent !important;
     }
     
+    /* MindAR Loading UI ausblenden */
+    .mindar-ui-overlay,
+    .mindar-ui-loading,
+    .mindar-ui-scanning,
+    .mindar-ui-compatibility {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+    }
+    
+    /* A-Frame Loading Screen ausblenden */
+    .a-loader-title,
+    .a-loader {
+      display: none !important;
+    }
+    
     /* Overlay UI - Minimalistisch */
     .overlay {
       position: fixed;
@@ -113,23 +129,51 @@
       text-align: center;
     }
     
-    /* Loading Indicator - Ausgeblendet */
+    /* Loading Indicator - Wie AR START Button */
     .loading {
       position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 50;
-      color: transparent;
-      font-size: 16px;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 9998;
+      background: #f5f5f5;
       display: none;
+      align-items: center;
+      justify-content: center;
       text-align: center;
     }
     
-    .loading.active { display: none; }
+    .loading.active { 
+      display: flex;
+    }
     
     .spinner {
-      display: none;
+      background: #9e9e9e;
+      color: white;
+      border: 4px solid #bdbdbd;
+      width: 180px;
+      height: 180px;
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: 2px;
+      border-radius: 50%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-transform: uppercase;
+      line-height: 1.2;
+      animation: none;
+      margin: 0;
+    }
+    
+    .loading div {
+      color: white;
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: 2px;
+      text-transform: uppercase;
     }
     
     @keyframes spin {
@@ -149,8 +193,7 @@
   
   <!-- Loading Indicator -->
   <div class="loading" id="loading">
-    <div class="spinner"></div>
-    <div>MindAR wird geladen...</div>
+    <div class="spinner">LOADING</div>
   </div>
   
   <!-- Info Banner -->
