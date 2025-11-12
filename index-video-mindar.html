@@ -371,6 +371,12 @@
       console.log('✅ MindAR renderstart Event');
     });
     
+    // Zusätzlicher Smoothing-Filter für Position und Rotation
+    let smoothedPosition = new THREE.Vector3();
+    let smoothedRotation = new THREE.Quaternion();
+    let isTracking = false;
+    const smoothingFactor = 0.05; // Sehr niedrig = sehr glatt
+    
     // Target Found/Lost Events
     const target = document.querySelector('[mindar-image-target]');
     
@@ -379,6 +385,14 @@
         console.log('✅ Marker erkannt!');
         infoBanner.textContent = '🎬 Video startet...';
         infoBanner.style.background = 'rgba(76, 195, 217, 0.8)';
+        isTracking = true;
+        
+        // Initiale Position setzen
+        const videoPlane = document.querySelector('a-video');
+        if (videoPlane && videoPlane.object3D) {
+          smoothedPosition.copy(videoPlane.object3D.position);
+          smoothedRotation.copy(videoPlane.object3D.quaternion);
+        }
         
         // Video abspielen (mit Fallback für iOS)
         if (video) {
@@ -397,6 +411,7 @@
         console.log('❌ Marker verloren');
         infoBanner.textContent = '📷 Richte die Kamera auf den Marker';
         infoBanner.style.background = 'rgba(0, 0, 0, 0.7)';
+        isTracking = false;
         
         // Video pausieren und zurückspulen
         if (video) {
@@ -407,6 +422,28 @@
         }
       });
     }
+    
+    // Render-Loop für zusätzliche Glättung
+    function smoothUpdate() {
+      if (isTracking) {
+        const videoPlane = document.querySelector('a-video');
+        if (videoPlane && videoPlane.object3D) {
+          // Sanfte Interpolation der Position
+          smoothedPosition.lerp(videoPlane.object3D.position, smoothingFactor);
+          videoPlane.object3D.position.copy(smoothedPosition);
+          
+          // Sanfte Interpolation der Rotation
+          smoothedRotation.slerp(videoPlane.object3D.quaternion, smoothingFactor);
+          videoPlane.object3D.quaternion.copy(smoothedRotation);
+        }
+      }
+      requestAnimationFrame(smoothUpdate);
+    }
+    
+    // Starte Smoothing-Loop nach Scene-Load
+    arScene.addEventListener('loaded', () => {
+      smoothUpdate();
+    });
     
     // Video geladen
     if (video) {
