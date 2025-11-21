@@ -84,6 +84,22 @@
       background: transparent;
       z-index: 10;
     }
+
+    /* Debug-Elemente verstecken (camera_0, debugChooseCam, etc.) */
+    #debugChooseCam,
+    select[id*="debug"],
+    select[id*="camera"],
+    #debugMatches,
+    #debugKps,
+    #getCorners,
+    #detectCompute,
+    #debugImageTarget,
+    #matchPatches {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
   </style>
 </head>
 <body>
