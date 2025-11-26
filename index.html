@@ -239,7 +239,7 @@
             try {
                 await loadScript('arcamera.js');
                 await loadScript('itracker.js');
-                await loadScript('Build/Build.loader.js');
+                await loadScript('Build/ZOO.loader.js');
                 scriptsLoaded = true;
                 console.log('All Unity scripts loaded successfully');
                 return true;
@@ -364,9 +364,9 @@
 
             try {
                 const unityInstance = await createUnityInstance(unityCanvas, {
-                    dataUrl: "Build/Build.data",
-                    frameworkUrl: "Build/Build.framework.js",
-                    codeUrl: "Build/Build.wasm",
+                    dataUrl: "Build/ZOO.data",
+                    frameworkUrl: "Build/ZOO.framework.js",
+                    codeUrl: "Build/ZOO.wasm",
                     streamingAssetsUrl: "StreamingAssets",
                     companyName: "YourCompany",
                     productName: "SimpleAR",
