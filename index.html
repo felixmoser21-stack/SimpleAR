@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>AR Home Screen</title>
@@ -13,16 +13,9 @@
             box-sizing: border-box;
         }
 
-        html {
-            height: -webkit-fill-available;
-        }
-
         body {
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            min-height: -webkit-fill-available;
             width: 100vw;
+            height: 100vh;
             overflow: hidden;
             background: #000;
             font-family: Arial, sans-serif;
@@ -72,119 +65,6 @@
         #home-video {
             pointer-events: none;
         }
-
-        /* Unity Container */
-        #unity-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            z-index: 1500;
-        }
-
-        #unity-canvas {
-            width: 100%;
-            height: 100%;
-            background: #0000;
-        }
-
-        #unity-loading-bar {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            display: none;
-        }
-
-        #unity-progress-bar-empty {
-            width: 200px;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        #unity-progress-bar-full {
-            width: 0%;
-            height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #8BC34A);
-            border-radius: 4px;
-            transition: width 0.3s ease;
-        }
-
-        /* AR Camera Elements */
-        #webcam-video {
-            width: 1px;
-            position: absolute;
-        }
-
-        #video-canvas {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            position: absolute;
-        }
-
-        /* Unity Loading Overlay */
-        #unity-loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
-
-        #unity-loading-content {
-            text-align: center;
-            color: white;
-        }
-
-        #unity-loading-content h2 {
-            font-size: 28px;
-            margin-bottom: 20px;
-        }
-
-        /* Loading Spinner */
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid white;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Fade animations */
-        .fade-out {
-            animation: fadeOut 0.5s ease forwards;
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease forwards;
-        }
-
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
     </style>
 </head>
 <body>
@@ -200,97 +80,25 @@
         </video>
     </div>
 
-    <!-- Unity WebGL Container -->
-    <video id="webcam-video" muted autoplay playsinline></video>
-    <div id="unity-container">
-        <canvas id="unity-canvas"></canvas>
-        <div id="unity-loading-bar">
-            <div id="unity-progress-bar-empty">
-                <div id="unity-progress-bar-full"></div>
-            </div>
-        </div>
-        <canvas id="video-canvas"></canvas>
-    </div>
-
-    <!-- Unity Loading Overlay -->
-    <div id="unity-loading-overlay">
-        <div id="unity-loading-content">
-            <h2>Unity lädt jetzt...</h2>
-            <div class="spinner"></div>
-        </div>
-    </div>
-
     <script>
-        // Check if required scripts are loaded
-        let scriptsLoaded = false;
-        
-        // Try to load scripts dynamically
-        function loadScript(src) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = src;
-                script.onload = () => resolve();
-                script.onerror = () => reject(new Error(`Failed to load ${src}`));
-                document.head.appendChild(script);
-            });
-        }
-
-        async function loadUnityScripts() {
-            try {
-                await loadScript('arcamera.js');
-                await loadScript('itracker.js');
-                await loadScript('Build/ZOO.loader.js');
-                scriptsLoaded = true;
-                console.log('All Unity scripts loaded successfully');
-                return true;
-            } catch (error) {
-                console.error('Failed to load Unity scripts:', error);
-                return false;
-            }
-        }
         // Elements
         const wrongOrientationOverlay = document.getElementById('wrong-orientation');
         const videoContainer = document.getElementById('video-container');
         const homeVideo = document.getElementById('home-video');
-        const unityLoadingOverlay = document.getElementById('unity-loading-overlay');
-        const unityContainer = document.getElementById('unity-container');
-        const unityCanvas = document.getElementById('unity-canvas');
-        const videoCanvas = document.getElementById('video-canvas');
-        const loadingBar = document.getElementById('unity-loading-bar');
-        const progressBarFull = document.getElementById('unity-progress-bar-full');
-
-        // Unity and AR Camera globals
-        window.arCamera = null;
-        window.iTracker = null;
-        window.unityInstance = null;
-        window.webcamStream = null;
-        window.permissionsGranted = false;
-        window.requestingForPermissions = false;
-        window.unityFacingMode = "environment";
-        window.WEBCAM_SETTINGS = {
-            video: {
-                facingMode: "environment",
-            },
-            audio: false
-        };
-        window.ITRACKER_GLOBALS = {
-            INTERNAL_SMOOTHFACTOR_POS: .075,
-        };
 
         // Check if device is in landscape mode
         function isLandscape() {
             return window.innerWidth > window.innerHeight;
         }
 
-        
         // Request fullscreen
         function requestFullscreen() {
             const elem = document.documentElement;
             if (elem.requestFullscreen) {
-                elem.requestFullscreen();
-            } else if (elem.webkitRequestFullscreen) { // Safari
+                elem.requestFullscreen(); // Chrome, Firefox, Opera
+            } else if (elem.webkitRequestFullscreen) { // Safari, older Chrome
                 elem.webkitRequestFullscreen();
-            } else if (elem.mozRequestFullScreen) { // Firefox
+            } else if (elem.mozRequestFullScreen) { // Older Firefox
                 elem.mozRequestFullScreen();
             } else if (elem.msRequestFullscreen) { // IE/Edge
                 elem.msRequestFullscreen();
@@ -299,11 +107,6 @@
 
         // Handle orientation change
         function handleOrientation() {
-            // Don't show orientation overlay if Unity is running
-            if (window.unityInstance) {
-                return;
-            }
-
             if (isLandscape()) {
                 // Landscape mode - show video
                 wrongOrientationOverlay.style.display = 'none';
@@ -323,197 +126,10 @@
             }
         }
 
-        // Initialize AR Camera and Image Tracker
-        async function initializeAR() {
-            console.log('Initializing AR...');
-            
-            // Check if ARCamera and ImageTracker are available
-            if (typeof ARCamera === 'undefined' || typeof ImageTracker === 'undefined') {
-                console.error('ARCamera or ImageTracker not found. Scripts may not be loaded.');
-                return false;
-            }
-
-            window.arCamera = new ARCamera(unityCanvas, videoCanvas);
-            window.iTracker = new ImageTracker(arCamera);
-
-            try {
-                await window.iTracker.initialize("./opencv.js");
-                console.log("ImageTracker initialized!");
-            } catch (error) {
-                console.error("Failed to initialize ImageTracker: ", error);
-                return false;
-            }
-
-            window.permissionsGranted = await IsCameraPermissionGranted();
-            return true;
-        }
-
-        // Start Unity WebGL
-        async function StartUnity() {
-            console.log('Starting Unity...');
-            
-            // Check if createUnityInstance is available
-            if (typeof createUnityInstance === 'undefined') {
-                console.error('createUnityInstance not found. Build.loader.js may not be loaded.');
-                alert("Unity loader not found. Please ensure all Unity build files are present.");
-                unityLoadingOverlay.style.display = "none";
-                videoContainer.style.display = "block";
-                homeVideo.play();
-                return;
-            }
-
-            unityCanvas.style.width = window.innerWidth + "px";
-            unityCanvas.style.height = window.innerHeight + "px";
-
-            loadingBar.style.display = "block";
-
-            try {
-                const unityInstance = await createUnityInstance(unityCanvas, {
-                    dataUrl: "Build/ZOO.data",
-                    frameworkUrl: "Build/ZOO.framework.js",
-                    codeUrl: "Build/ZOO.wasm",
-                    streamingAssetsUrl: "StreamingAssets",
-                    companyName: "YourCompany",
-                    productName: "SimpleAR",
-                    productVersion: "1.0",
-                }, (progress) => {
-                    progressBarFull.style.width = 100 * progress + "%";
-                    console.log('Unity loading progress: ' + Math.round(progress * 100) + '%');
-                });
-
-                window.unityInstance = unityInstance;
-                console.log("Unity instance created successfully");
-                
-                // Always request webcam after Unity is loaded
-                await RequestWebcam();
-                
-                loadingBar.style.display = "none";
-                console.log("Unity loaded successfully - AR Camera should be active");
-            } catch (error) {
-                console.error("Unity failed to load: ", error);
-                unityLoadingOverlay.style.display = "none";
-                videoContainer.style.display = "block";
-                homeVideo.play();
-                alert("Failed to load AR experience: " + error.message);
-            }
-        }
-
-        // Request Webcam Permission and Start
-        async function RequestWebcam() {
-            console.log("Requesting webcam access...");
-            window.requestingForPermissions = true;
-            try {
-                window.webcamStream = await navigator.mediaDevices.getUserMedia(window.WEBCAM_SETTINGS);
-                console.log("Webcam access granted");
-                requestingForPermissions = false;
-                
-                // Start the webcam for AR immediately
-                await StartWebcam();
-            } catch (err) {
-                console.error("getUserMedia error - ", err);
-                window.requestingForPermissions = false;
-                alert("Camera access denied. Please allow camera access to use AR.");
-            }
-        }
-
-        // Start Webcam
-        async function StartWebcam() {
-            console.log("Starting webcam for AR...");
-
-            if (!window.webcamStream) {
-                console.error("No webcam stream available");
-                return;
-            }
-
-            const video = document.querySelector("#webcam-video");
-            video.srcObject = window.webcamStream;
-            
-            try {
-                await window.arCamera.startWebcam(video);
-                console.log("AR Camera started successfully!");
-                
-                // Notify Unity that webcam is ready
-                if (window.unityInstance) {
-                    window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamSuccess');
-                    console.log("Sent OnStartWebcamSuccess to Unity");
-                }
-            } catch (err) {
-                console.error("Failed to start AR Camera: ", err);
-                if (window.unityInstance) {
-                    window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamFail');
-                }
-            }
-        }
-
-        // Check Camera Permission
-        async function IsCameraPermissionGranted() {
-            if (!navigator.permissions || !navigator.mediaDevices) {
-                console.log("Permissions API or mediaDevices not supported.");
-                return false;
-            }
-
-            try {
-                const permissionStatus = await navigator.permissions.query({ name: "camera" });
-                if (permissionStatus.state === "granted") {
-                    console.log("Camera permission has already been granted.");
-                    return true;
-                } else if (permissionStatus.state === "prompt") {
-                    console.log("Camera permission is promptable.");
-                    return false;
-                } else {
-                    console.log("Camera permission has been denied.");
-                    return false;
-                }
-            } catch (error) {
-                console.log("Error checking camera permission:", error);
-                return false;
-            }
-        }
-
-        // Handle video click to start AR
-        videoContainer.addEventListener('click', async function() {
-            console.log('Video clicked - Starting AR Experience...');
-            
-            // Ensure fullscreen before starting AR
-            requestFullscreen();
-
-            // Hide video, show Unity loading
-            videoContainer.style.display = 'none';
-            unityLoadingOverlay.style.display = 'flex';
-            homeVideo.pause();
-
-            // Load Unity scripts if not already loaded
-            if (!scriptsLoaded) {
-                console.log('Loading Unity scripts...');
-                const loaded = await loadUnityScripts();
-                if (!loaded) {
-                    alert("Failed to load Unity scripts. Please ensure arcamera.js, itracker.js, and Build files are present.");
-                    unityLoadingOverlay.style.display = 'none';
-                    videoContainer.style.display = 'block';
-                    homeVideo.play();
-                    return;
-                }
-            }
-
-            // Initialize AR if not already done
-            if (!window.arCamera) {
-                console.log('Initializing AR Camera...');
-                const arInitialized = await initializeAR();
-                if (!arInitialized) {
-                    alert("Failed to initialize AR. Please ensure opencv.js is present and try again.");
-                    unityLoadingOverlay.style.display = 'none';
-                    videoContainer.style.display = 'block';
-                    homeVideo.play();
-                    return;
-                }
-            }
-
-            // Hide loading overlay, show Unity container
-            setTimeout(() => {
-                unityLoadingOverlay.style.display = 'none';
-                unityContainer.style.display = 'block';
-                StartUnity();
-            }, 1000);
+        // Handle video click
+        videoContainer.addEventListener('click', function() {
+            console.log('Video clicked');
+            // Hier kann später Unity gestartet werden
         });
 
         // Initialize on page load
