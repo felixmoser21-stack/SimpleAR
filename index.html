@@ -299,6 +299,11 @@
 
         // Handle orientation change
         function handleOrientation() {
+            // Don't show orientation overlay if Unity is running
+            if (window.unityInstance) {
+                return;
+            }
+
             if (isLandscape()) {
                 // Landscape mode - show video
                 wrongOrientationOverlay.style.display = 'none';
@@ -377,11 +382,13 @@
                 });
 
                 window.unityInstance = unityInstance;
-                if (window.permissionsGranted) {
-                    RequestWebcam();
-                }
+                console.log("Unity instance created successfully");
+                
+                // Always request webcam after Unity is loaded
+                await RequestWebcam();
+                
                 loadingBar.style.display = "none";
-                console.log("Unity loaded successfully");
+                console.log("Unity loaded successfully - AR Camera should be active");
             } catch (error) {
                 console.error("Unity failed to load: ", error);
                 unityLoadingOverlay.style.display = "none";
@@ -391,51 +398,50 @@
             }
         }
 
-        // Request Webcam Permission
+        // Request Webcam Permission and Start
         async function RequestWebcam() {
+            console.log("Requesting webcam access...");
             window.requestingForPermissions = true;
             try {
                 window.webcamStream = await navigator.mediaDevices.getUserMedia(window.WEBCAM_SETTINGS);
                 console.log("Webcam access granted");
                 requestingForPermissions = false;
-                StopWebcam();
+                
+                // Start the webcam for AR immediately
+                await StartWebcam();
             } catch (err) {
                 console.error("getUserMedia error - ", err);
                 window.requestingForPermissions = false;
+                alert("Camera access denied. Please allow camera access to use AR.");
             }
-        }
-
-        // Stop Webcam
-        function StopWebcam() {
-            console.log("stopping camera");
-            window.webcamStream.getTracks().forEach(track => track.stop());
         }
 
         // Start Webcam
         async function StartWebcam() {
-            console.log("StartWebcam");
-            window.webcamStream = await navigator.mediaDevices.getUserMedia(window.WEBCAM_SETTINGS);
+            console.log("Starting webcam for AR...");
 
-            while (window.requestingForPermissions) {
-                console.log("Waiting for permissions...");
-                await new Promise(resolve => setTimeout(resolve, 100));
+            if (!window.webcamStream) {
+                console.error("No webcam stream available");
+                return;
             }
 
-            console.log("Got Permissions");
-            if (window.webcamStream) {
-                const video = document.querySelector("#webcam-video");
-                video.srcObject = webcamStream;
-                try {
-                    await arCamera.startWebcam(video);
-                    console.log("Webcam started successfully");
+            const video = document.querySelector("#webcam-video");
+            video.srcObject = window.webcamStream;
+            
+            try {
+                await window.arCamera.startWebcam(video);
+                console.log("AR Camera started successfully!");
+                
+                // Notify Unity that webcam is ready
+                if (window.unityInstance) {
                     window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamSuccess');
-                } catch (err) {
-                    console.error("Webcam failed to start - ", err);
+                    console.log("Sent OnStartWebcamSuccess to Unity");
+                }
+            } catch (err) {
+                console.error("Failed to start AR Camera: ", err);
+                if (window.unityInstance) {
                     window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamFail');
                 }
-            } else {
-                console.error("Webcam failed to start - permission not yet granted");
-                window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamFail');
             }
         }
 
