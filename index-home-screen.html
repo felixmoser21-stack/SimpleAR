@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>AR Home Screen</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Video Container */
+        #video-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+
+        #home-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Wrong Orientation Overlay */
+        #wrong-orientation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #wrong-orientation img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
+        /* Loading Bar Container */
+        #loading-bar-container {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 400px;
+            display: none;
+            z-index: 100;
+        }
+
+        #loading-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        #loading-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        #loading-text {
+            text-align: center;
+            color: white;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        /* Start AR Button */
+        #start-ar-button {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        #start-ar-button:hover {
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        #start-ar-button:active {
+            transform: translateX(-50%) scale(0.98);
+        }
+
+        #start-ar-button.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Unity Loading Overlay */
+        #unity-loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        #unity-loading-content {
+            text-align: center;
+            color: white;
+        }
+
+        #unity-loading-content h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Fade animations */
+        .fade-out {
+            animation: fadeOut 0.5s ease forwards;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Wrong Orientation Overlay -->
+    <div id="wrong-orientation">
+        <img src="WRONG_ORIENTATION.png" alt="Bitte Handy drehen">
+    </div>
+
+    <!-- Video Container -->
+    <div id="video-container">
+        <video id="home-video" autoplay muted loop playsinline preload="auto">
+            <source src="HOME_SCREEN.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <!-- Loading Bar -->
+    <div id="loading-bar-container">
+        <div id="loading-bar-bg">
+            <div id="loading-bar-fill"></div>
+        </div>
+        <div id="loading-text">Lädt... 0%</div>
+    </div>
+
+    <!-- Start AR Button -->
+    <button id="start-ar-button" class="disabled">Start AR</button>
+
+    <!-- Unity Loading Overlay -->
+    <div id="unity-loading-overlay">
+        <div id="unity-loading-content">
+            <h2>Unity lädt jetzt...</h2>
+            <div class="spinner"></div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const wrongOrientationOverlay = document.getElementById('wrong-orientation');
+        const videoContainer = document.getElementById('video-container');
+        const homeVideo = document.getElementById('home-video');
+        const loadingBarContainer = document.getElementById('loading-bar-container');
+        const loadingBarFill = document.getElementById('loading-bar-fill');
+        const loadingText = document.getElementById('loading-text');
+        const startArButton = document.getElementById('start-ar-button');
+        const unityLoadingOverlay = document.getElementById('unity-loading-overlay');
+
+        // State
+        let videoLoadProgress = 0;
+        let isVideoReady = false;
+        const MIN_PROGRESS_FOR_BUTTON = 20; // Button wird ab 20% Ladefortschritt sichtbar
+
+        // Check if device is in landscape mode
+        function isLandscape() {
+            return window.innerWidth > window.innerHeight;
+        }
+
+        // Update loading bar
+        function updateLoadingBar(progress) {
+            videoLoadProgress = progress;
+            loadingBarFill.style.width = progress + '%';
+            loadingText.textContent = `Lädt... ${Math.round(progress)}%`;
+
+            // Enable button when minimum progress is reached
+            if (progress >= MIN_PROGRESS_FOR_BUTTON && isLandscape()) {
+                enableStartButton();
+            }
+
+            // Mark video as ready when fully loaded
+            if (progress >= 100) {
+                isVideoReady = true;
+            }
+        }
+
+        // Enable start button
+        function enableStartButton() {
+            startArButton.classList.remove('disabled');
+            startArButton.style.display = 'block';
+        }
+
+        // Disable start button
+        function disableStartButton() {
+            startArButton.classList.add('disabled');
+            startArButton.style.display = 'none';
+        }
+
+        // Handle orientation change
+        function handleOrientation() {
+            if (isLandscape()) {
+                // Landscape mode - show video and controls
+                wrongOrientationOverlay.style.display = 'none';
+                videoContainer.style.display = 'block';
+                loadingBarContainer.style.display = 'block';
+
+                // Start video if not already playing
+                homeVideo.play().catch(err => {
+                    console.log('Video autoplay prevented:', err);
+                });
+
+                // Show button if video has loaded enough
+                if (videoLoadProgress >= MIN_PROGRESS_FOR_BUTTON) {
+                    enableStartButton();
+                }
+            } else {
+                // Portrait mode - show wrong orientation overlay
+                wrongOrientationOverlay.style.display = 'flex';
+                videoContainer.style.display = 'none';
+                loadingBarContainer.style.display = 'none';
+                disableStartButton();
+            }
+        }
+
+        // Monitor video loading progress
+        function monitorVideoProgress() {
+            homeVideo.addEventListener('progress', function() {
+                if (homeVideo.duration > 0) {
+                    const buffered = homeVideo.buffered;
+                    if (buffered.length > 0) {
+                        const loadedSeconds = buffered.end(buffered.length - 1);
+                        const progress = (loadedSeconds / homeVideo.duration) * 100;
+                        updateLoadingBar(progress);
+                    }
+                }
+            });
+
+            homeVideo.addEventListener('canplaythrough', function() {
+                updateLoadingBar(100);
+            });
+
+            homeVideo.addEventListener('loadeddata', function() {
+                // Video metadata loaded
+                if (videoLoadProgress < 10) {
+                    updateLoadingBar(10);
+                }
+            });
+        }
+
+        // Handle Start AR button click
+        startArButton.addEventListener('click', function() {
+            if (startArButton.classList.contains('disabled')) {
+                return;
+            }
+
+            // Show Unity loading overlay
+            unityLoadingOverlay.style.display = 'flex';
+
+            // Optional: Pause video to save resources
+            homeVideo.pause();
+
+            // TODO: Hier später Unity-WebGL-Loader starten oder zu unity-index.html weiterleiten
+            // Beispiel:
+            // window.location.href = "unity-index.html?station=1";
+            
+            console.log('Start AR clicked - Unity loading...');
+        });
+
+        // Initialize on page load
+        function init() {
+            // Start monitoring video progress
+            monitorVideoProgress();
+
+            // Check initial orientation
+            handleOrientation();
+
+            // Listen for orientation changes
+            window.addEventListener('orientationchange', handleOrientation);
+            window.addEventListener('resize', handleOrientation);
+
+            // Force video to start loading
+            homeVideo.load();
+        }
+
+        // Start when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
