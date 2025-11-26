@@ -220,10 +220,34 @@
         </div>
     </div>
 
-    <script src="arcamera.js" type="text/javascript"></script>
-    <script src="itracker.js" type="text/javascript"></script>
-    <script src="Build/Build.loader.js"></script>
     <script>
+        // Check if required scripts are loaded
+        let scriptsLoaded = false;
+        
+        // Try to load scripts dynamically
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error(`Failed to load ${src}`));
+                document.head.appendChild(script);
+            });
+        }
+
+        async function loadUnityScripts() {
+            try {
+                await loadScript('arcamera.js');
+                await loadScript('itracker.js');
+                await loadScript('Build/Build.loader.js');
+                scriptsLoaded = true;
+                console.log('All Unity scripts loaded successfully');
+                return true;
+            } catch (error) {
+                console.error('Failed to load Unity scripts:', error);
+                return false;
+            }
+        }
         // Elements
         const wrongOrientationOverlay = document.getElementById('wrong-orientation');
         const videoContainer = document.getElementById('video-container');
@@ -296,6 +320,14 @@
 
         // Initialize AR Camera and Image Tracker
         async function initializeAR() {
+            console.log('Initializing AR...');
+            
+            // Check if ARCamera and ImageTracker are available
+            if (typeof ARCamera === 'undefined' || typeof ImageTracker === 'undefined') {
+                console.error('ARCamera or ImageTracker not found. Scripts may not be loaded.');
+                return false;
+            }
+
             window.arCamera = new ARCamera(unityCanvas, videoCanvas);
             window.iTracker = new ImageTracker(arCamera);
 
@@ -313,33 +345,50 @@
 
         // Start Unity WebGL
         async function StartUnity() {
+            console.log('Starting Unity...');
+            
+            // Check if createUnityInstance is available
+            if (typeof createUnityInstance === 'undefined') {
+                console.error('createUnityInstance not found. Build.loader.js may not be loaded.');
+                alert("Unity loader not found. Please ensure all Unity build files are present.");
+                unityLoadingOverlay.style.display = "none";
+                videoContainer.style.display = "block";
+                homeVideo.play();
+                return;
+            }
+
             unityCanvas.style.width = window.innerWidth + "px";
             unityCanvas.style.height = window.innerHeight + "px";
 
             loadingBar.style.display = "block";
 
-            createUnityInstance(unityCanvas, {
-                dataUrl: "Build/Build.data",
-                frameworkUrl: "Build/Build.framework.js",
-                codeUrl: "Build/Build.wasm",
-                streamingAssetsUrl: "StreamingAssets",
-                companyName: "YourCompany",
-                productName: "SimpleAR",
-                productVersion: "1.0",
-            }, (progress) => {
-                progressBarFull.style.width = 100 * progress + "%";
-            }).then((unityInstance) => {
+            try {
+                const unityInstance = await createUnityInstance(unityCanvas, {
+                    dataUrl: "Build/Build.data",
+                    frameworkUrl: "Build/Build.framework.js",
+                    codeUrl: "Build/Build.wasm",
+                    streamingAssetsUrl: "StreamingAssets",
+                    companyName: "YourCompany",
+                    productName: "SimpleAR",
+                    productVersion: "1.0",
+                }, (progress) => {
+                    progressBarFull.style.width = 100 * progress + "%";
+                    console.log('Unity loading progress: ' + Math.round(progress * 100) + '%');
+                });
+
                 window.unityInstance = unityInstance;
                 if (window.permissionsGranted) {
                     RequestWebcam();
                 }
                 loadingBar.style.display = "none";
                 console.log("Unity loaded successfully");
-            }).catch((error) => {
+            } catch (error) {
                 console.error("Unity failed to load: ", error);
                 unityLoadingOverlay.style.display = "none";
-                alert("Failed to load AR experience. Please refresh and try again.");
-            });
+                videoContainer.style.display = "block";
+                homeVideo.play();
+                alert("Failed to load AR experience: " + error.message);
+            }
         }
 
         // Request Webcam Permission
@@ -417,6 +466,8 @@
 
         // Handle video click to start AR
         videoContainer.addEventListener('click', async function() {
+            console.log('Video clicked - Starting AR Experience...');
+            
             // Ensure fullscreen before starting AR
             requestFullscreen();
 
@@ -425,11 +476,28 @@
             unityLoadingOverlay.style.display = 'flex';
             homeVideo.pause();
 
+            // Load Unity scripts if not already loaded
+            if (!scriptsLoaded) {
+                console.log('Loading Unity scripts...');
+                const loaded = await loadUnityScripts();
+                if (!loaded) {
+                    alert("Failed to load Unity scripts. Please ensure arcamera.js, itracker.js, and Build files are present.");
+                    unityLoadingOverlay.style.display = 'none';
+                    videoContainer.style.display = 'block';
+                    homeVideo.play();
+                    return;
+                }
+            }
+
             // Initialize AR if not already done
             if (!window.arCamera) {
+                console.log('Initializing AR Camera...');
                 const arInitialized = await initializeAR();
                 if (!arInitialized) {
-                    alert("Failed to initialize AR. Please refresh and try again.");
+                    alert("Failed to initialize AR. Please ensure opencv.js is present and try again.");
+                    unityLoadingOverlay.style.display = 'none';
+                    videoContainer.style.display = 'block';
+                    homeVideo.play();
                     return;
                 }
             }
@@ -440,8 +508,6 @@
                 unityContainer.style.display = 'block';
                 StartUnity();
             }, 1000);
-
-            console.log('Starting Unity AR Experience...');
         });
 
         // Initialize on page load
