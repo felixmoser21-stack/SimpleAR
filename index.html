@@ -52,78 +52,18 @@
         }
 
         #wrong-orientation img {
-            max-width: 90%;
-            max-height: 90%;
-            object-fit: contain;
-        }
-
-        /* Loading Bar Container */
-        #loading-bar-container {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80%;
-            max-width: 400px;
-            display: none;
-            z-index: 100;
-        }
-
-        #loading-bar-bg {
             width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        #loading-bar-fill {
-            width: 0%;
             height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #8BC34A);
-            border-radius: 4px;
-            transition: width 0.3s ease;
+            object-fit: cover;
         }
 
-        #loading-text {
-            text-align: center;
-            color: white;
-            font-size: 14px;
-            margin-top: 8px;
-        }
-
-        /* Start AR Button */
-        #start-ar-button {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 40px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-size: 18px;
-            font-weight: bold;
-            border: none;
-            border-radius: 30px;
+        /* Video is clickable */
+        #video-container {
             cursor: pointer;
-            display: none;
-            z-index: 100;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        #start-ar-button:hover {
-            transform: translateX(-50%) scale(1.05);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-        }
-
-        #start-ar-button:active {
-            transform: translateX(-50%) scale(0.98);
-        }
-
-        #start-ar-button.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        #home-video {
+            pointer-events: none;
         }
 
         /* Unity Loading Overlay */
@@ -199,17 +139,7 @@
         </video>
     </div>
 
-    <!-- Loading Bar -->
-    <div id="loading-bar-container">
-        <div id="loading-bar-bg">
-            <div id="loading-bar-fill"></div>
-        </div>
-        <div id="loading-text">Lädt... 0%</div>
-    </div>
-
-    <!-- Start AR Button -->
-    <button id="start-ar-button" class="disabled">Start AR</button>
-
+    
     <!-- Unity Loading Overlay -->
     <div id="unity-loading-overlay">
         <div id="unity-loading-content">
@@ -223,126 +153,49 @@
         const wrongOrientationOverlay = document.getElementById('wrong-orientation');
         const videoContainer = document.getElementById('video-container');
         const homeVideo = document.getElementById('home-video');
-        const loadingBarContainer = document.getElementById('loading-bar-container');
-        const loadingBarFill = document.getElementById('loading-bar-fill');
-        const loadingText = document.getElementById('loading-text');
-        const startArButton = document.getElementById('start-ar-button');
         const unityLoadingOverlay = document.getElementById('unity-loading-overlay');
-
-        // State
-        let videoLoadProgress = 0;
-        let isVideoReady = false;
-        const MIN_PROGRESS_FOR_BUTTON = 20; // Button wird ab 20% Ladefortschritt sichtbar
 
         // Check if device is in landscape mode
         function isLandscape() {
             return window.innerWidth > window.innerHeight;
         }
 
-        // Update loading bar
-        function updateLoadingBar(progress) {
-            videoLoadProgress = progress;
-            loadingBarFill.style.width = progress + '%';
-            loadingText.textContent = `Lädt... ${Math.round(progress)}%`;
-
-            // Enable button when minimum progress is reached
-            if (progress >= MIN_PROGRESS_FOR_BUTTON && isLandscape()) {
-                enableStartButton();
-            }
-
-            // Mark video as ready when fully loaded
-            if (progress >= 100) {
-                isVideoReady = true;
-            }
-        }
-
-        // Enable start button
-        function enableStartButton() {
-            startArButton.classList.remove('disabled');
-            startArButton.style.display = 'block';
-        }
-
-        // Disable start button
-        function disableStartButton() {
-            startArButton.classList.add('disabled');
-            startArButton.style.display = 'none';
-        }
-
+        
         // Handle orientation change
         function handleOrientation() {
             if (isLandscape()) {
-                // Landscape mode - show video and controls
+                // Landscape mode - show video
                 wrongOrientationOverlay.style.display = 'none';
                 videoContainer.style.display = 'block';
-                loadingBarContainer.style.display = 'block';
 
                 // Start video if not already playing
                 homeVideo.play().catch(err => {
                     console.log('Video autoplay prevented:', err);
                 });
-
-                // Show button if video has loaded enough
-                if (videoLoadProgress >= MIN_PROGRESS_FOR_BUTTON) {
-                    enableStartButton();
-                }
             } else {
                 // Portrait mode - show wrong orientation overlay
                 wrongOrientationOverlay.style.display = 'flex';
                 videoContainer.style.display = 'none';
-                loadingBarContainer.style.display = 'none';
-                disableStartButton();
             }
         }
 
-        // Monitor video loading progress
-        function monitorVideoProgress() {
-            homeVideo.addEventListener('progress', function() {
-                if (homeVideo.duration > 0) {
-                    const buffered = homeVideo.buffered;
-                    if (buffered.length > 0) {
-                        const loadedSeconds = buffered.end(buffered.length - 1);
-                        const progress = (loadedSeconds / homeVideo.duration) * 100;
-                        updateLoadingBar(progress);
-                    }
-                }
-            });
-
-            homeVideo.addEventListener('canplaythrough', function() {
-                updateLoadingBar(100);
-            });
-
-            homeVideo.addEventListener('loadeddata', function() {
-                // Video metadata loaded
-                if (videoLoadProgress < 10) {
-                    updateLoadingBar(10);
-                }
-            });
-        }
-
-        // Handle Start AR button click
-        startArButton.addEventListener('click', function() {
-            if (startArButton.classList.contains('disabled')) {
-                return;
-            }
-
+        // Handle video click to start AR
+        videoContainer.addEventListener('click', function() {
             // Show Unity loading overlay
             unityLoadingOverlay.style.display = 'flex';
 
-            // Optional: Pause video to save resources
+            // Pause video to save resources
             homeVideo.pause();
 
             // TODO: Hier später Unity-WebGL-Loader starten oder zu unity-index.html weiterleiten
             // Beispiel:
             // window.location.href = "unity-index.html?station=1";
             
-            console.log('Start AR clicked - Unity loading...');
+            console.log('Video clicked - Unity loading...');
         });
 
         // Initialize on page load
         function init() {
-            // Start monitoring video progress
-            monitorVideoProgress();
-
             // Check initial orientation
             handleOrientation();
 
