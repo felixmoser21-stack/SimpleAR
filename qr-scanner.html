@@ -220,10 +220,33 @@
     <script>
         let html5QrCode = null;
 
+        // Helper function to validate URL
+        function isValidUrl(string) {
+            try {
+                const url = new URL(string);
+                // Check if protocol is http or https
+                return url.protocol === 'http:' || url.protocol === 'https:';
+            } catch (_) {
+                return false;
+            }
+        }
+
+        // Helper function to validate video URL
+        function isValidVideoUrl(string) {
+            if (!isValidUrl(string)) {
+                return false;
+            }
+            // Check if URL ends with video extension or contains video parameter
+            const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'];
+            const lowerUrl = string.toLowerCase();
+            return videoExtensions.some(ext => lowerUrl.includes(ext));
+        }
+
         // Success callback when QR code is detected
         function onScanSuccess(decodedText, decodedResult) {
-            console.log('QR-Code detected:', decodedText);
-            console.log('Decoded result:', decodedResult);
+            console.log('=== QR-Code Scan Success ===');
+            console.log('Raw QR-Code:', decodedText);
+            console.log('Scan Result:', decodedResult);
 
             // Stop scanning
             if (html5QrCode) {
@@ -234,21 +257,146 @@
                 });
             }
 
-            // Store QR content in sessionStorage (instance-specific)
-            sessionStorage.setItem('qrCodeContent', decodedText);
+            //----------------------------------------
+            // Extract stationId & videoUrl
+            //----------------------------------------
 
-            // Show success message
+            let stationId = null;
+            let videoUrl = null;
+
+            try {
+                if (decodedText.includes("http")) {
+                    // Whole URL
+                    const urlObj = new URL(decodedText);
+
+                    stationId = urlObj.searchParams.get("station");
+                    videoUrl = urlObj.searchParams.get("video");
+
+                    // maybe URL IS the video
+                    if (!videoUrl && (decodedText.endsWith(".mp4") || decodedText.endsWith(".mov") || decodedText.endsWith(".webm"))) {
+                        videoUrl = decodedText;
+                    }
+                }
+                else if (decodedText.includes("=")) {
+                    // Only parameters
+                    const params = new URLSearchParams(decodedText);
+                    stationId = params.get("station");
+                    videoUrl = params.get("video");
+                }
+                else if (decodedText.endsWith(".mp4") || decodedText.endsWith(".mov") || decodedText.endsWith(".webm")) {
+                    // Direct video URL (without http)
+                    videoUrl = decodedText;
+                }
+            } catch (err) {
+                console.error("QR parsing error:", err);
+            }
+
+            //----------------------------------------
+            // Logging extracted values
+            //----------------------------------------
+
+            console.log('--- Extracted Data ---');
+            console.log('Station ID:', stationId || 'nicht gefunden');
+            console.log('Video URL:', videoUrl || 'nicht gefunden');
+            console.log('======================');
+
+            //----------------------------------------
+            // Validation
+            //----------------------------------------
+
+            // Check if at least one value was extracted
+            if (!stationId && !videoUrl) {
+                console.error('Validation failed: No valid data extracted from QR-Code');
+                showError('QR-Code enthält keine gültigen Daten (Station oder Video)!');
+                
+                // Restart scanner after 3 seconds
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+                return;
+            }
+
+            // Validate video URL if present
+            if (videoUrl && !isValidVideoUrl(videoUrl)) {
+                console.error('Validation failed: Invalid video URL:', videoUrl);
+                showError('Ungültige Video-URL im QR-Code! Bitte verwenden Sie eine gültige HTTP(S) Video-URL.');
+                
+                // Restart scanner after 3 seconds
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+                return;
+            }
+
+            // Validate station ID if present (optional: add custom validation)
+            if (stationId) {
+                // Trim whitespace
+                stationId = stationId.trim();
+                
+                // Optional: Check if station ID is not empty after trim
+                if (stationId.length === 0) {
+                    console.warn('Warning: Station ID is empty after trim');
+                    stationId = null;
+                }
+            }
+
+            //----------------------------------------
+            // STORE results tab-local (only valid data)
+            //----------------------------------------
+
+            // Always store raw QR-Code
+            sessionStorage.setItem("qr_raw", decodedText);
+
+            // Only store valid values (not empty strings)
+            if (stationId) {
+                sessionStorage.setItem("stationId", stationId);
+                console.log('✓ Stored stationId:', stationId);
+            } else {
+                sessionStorage.removeItem("stationId");
+                console.log('✗ No stationId to store');
+            }
+
+            if (videoUrl) {
+                sessionStorage.setItem("videoUrl", videoUrl);
+                console.log('✓ Stored videoUrl:', videoUrl);
+            } else {
+                sessionStorage.removeItem("videoUrl");
+                console.log('✗ No videoUrl to store');
+            }
+
+            //----------------------------------------
+            // UI feedback
+            //----------------------------------------
+
             const infoDiv = document.getElementById('scanner-info');
-            infoDiv.textContent = 'QR-Code erfolgreich gescannt!';
+            
+            // Show what was found
+            let successMessage = 'QR-Code erfolgreich gescannt!';
+            if (stationId && videoUrl) {
+                successMessage += ` (Station: ${stationId})`;
+            } else if (stationId) {
+                successMessage += ` (Station: ${stationId})`;
+            } else if (videoUrl) {
+                successMessage += ' (Video gefunden)';
+            }
+            
+            infoDiv.textContent = successMessage;
             infoDiv.style.background = 'rgba(0, 255, 0, 0.8)';
 
-            // Remove scanning animation
             document.getElementById('scanner-frame').classList.remove('scanning');
 
-            // Redirect to AR tracker after short delay
-            setTimeout(() => {
-                window.location.href = 'index_tracker.html?qr=scanned';
-            }, 1000);
+            console.log('=== Scan Complete - Redirecting ===');
+
+            //----------------------------------------
+            // Redirect to Unity loader
+            //----------------------------------------
+
+            // WICHTIG: Daten nochmal bestätigen vor Redirect
+            console.log('=== BEFORE REDIRECT - Verify Data ===');
+            console.log('sessionStorage.videoUrl:', sessionStorage.getItem('videoUrl'));
+            console.log('sessionStorage.stationId:', sessionStorage.getItem('stationId'));
+            console.log('sessionStorage.qr_raw:', sessionStorage.getItem('qr_raw'));
+            console.log('
         }
 
         // Error callback (optional, for debugging)

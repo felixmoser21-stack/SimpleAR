@@ -11,14 +11,33 @@
     console.log('URL Parameter qr:', qrScanned);
     
     // Retrieve QR code data from sessionStorage (NEW FORMAT)
-    const videoUrl = sessionStorage.getItem('videoUrl');
-    const stationId = sessionStorage.getItem('stationId');
-    const qrRaw = sessionStorage.getItem('qr_raw');
+    let videoUrl = sessionStorage.getItem('videoUrl');
+    let stationId = sessionStorage.getItem('stationId');
+    let qrRaw = sessionStorage.getItem('qr_raw');
     
     console.log('--- SessionStorage Data ---');
     console.log('videoUrl:', videoUrl || 'nicht gefunden');
     console.log('stationId:', stationId || 'nicht gefunden');
     console.log('qr_raw:', qrRaw || 'nicht gefunden');
+    
+    // FALLBACK: Try URL parameters if sessionStorage is empty
+    if (!videoUrl && !stationId) {
+        console.log('⚠ SessionStorage empty - trying URL parameters as fallback...');
+        videoUrl = urlParams.get('video');
+        stationId = urlParams.get('station');
+        
+        if (videoUrl) {
+            videoUrl = decodeURIComponent(videoUrl);
+            sessionStorage.setItem('videoUrl', videoUrl);
+            console.log('✓ Recovered videoUrl from URL parameter:', videoUrl);
+        }
+        if (stationId) {
+            stationId = decodeURIComponent(stationId);
+            sessionStorage.setItem('stationId', stationId);
+            console.log('✓ Recovered stationId from URL parameter:', stationId);
+        }
+    }
+    
     console.log('===========================');
     
     // Store globally in window object for Unity access (backwards compatibility)
@@ -72,6 +91,8 @@
     } else if (!hasData && qrScanned === 'scanned') {
         // QR scan failed or data lost
         console.error('✗ QR scan parameter present but no data found in sessionStorage');
+        console.error('⚠ This might be a browser issue with sessionStorage across redirects');
+        console.error('⚠ Try scanning the QR-Code again or check browser settings');
         alert('QR-Code Daten nicht gefunden. Bitte scannen Sie erneut.');
         window.location.href = 'qr-scanner.html';
     } else if (!qrScanned) {
