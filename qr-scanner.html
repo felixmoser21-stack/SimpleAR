@@ -224,7 +224,6 @@
         function isValidUrl(string) {
             try {
                 const url = new URL(string);
-                // Check if protocol is http or https
                 return url.protocol === 'http:' || url.protocol === 'https:';
             } catch (_) {
                 return false;
@@ -236,7 +235,6 @@
             if (!isValidUrl(string)) {
                 return false;
             }
-            // Check if URL ends with video extension or contains video parameter
             const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'];
             const lowerUrl = string.toLowerCase();
             return videoExtensions.some(ext => lowerUrl.includes(ext));
@@ -257,97 +255,63 @@
                 });
             }
 
-            //----------------------------------------
             // Extract stationId & videoUrl
-            //----------------------------------------
-
             let stationId = null;
             let videoUrl = null;
 
             try {
                 if (decodedText.includes("http")) {
-                    // Whole URL
                     const urlObj = new URL(decodedText);
-
                     stationId = urlObj.searchParams.get("station");
                     videoUrl = urlObj.searchParams.get("video");
 
-                    // maybe URL IS the video
                     if (!videoUrl && (decodedText.endsWith(".mp4") || decodedText.endsWith(".mov") || decodedText.endsWith(".webm"))) {
                         videoUrl = decodedText;
                     }
                 }
                 else if (decodedText.includes("=")) {
-                    // Only parameters
                     const params = new URLSearchParams(decodedText);
                     stationId = params.get("station");
                     videoUrl = params.get("video");
                 }
                 else if (decodedText.endsWith(".mp4") || decodedText.endsWith(".mov") || decodedText.endsWith(".webm")) {
-                    // Direct video URL (without http)
                     videoUrl = decodedText;
                 }
             } catch (err) {
                 console.error("QR parsing error:", err);
             }
 
-            //----------------------------------------
-            // Logging extracted values
-            //----------------------------------------
-
             console.log('--- Extracted Data ---');
             console.log('Station ID:', stationId || 'nicht gefunden');
             console.log('Video URL:', videoUrl || 'nicht gefunden');
             console.log('======================');
 
-            //----------------------------------------
             // Validation
-            //----------------------------------------
-
-            // Check if at least one value was extracted
             if (!stationId && !videoUrl) {
                 console.error('Validation failed: No valid data extracted from QR-Code');
                 showError('QR-Code enthält keine gültigen Daten (Station oder Video)!');
-                
-                // Restart scanner after 3 seconds
-                setTimeout(() => {
-                    window.location.reload();
-                }, 3000);
+                setTimeout(() => window.location.reload(), 3000);
                 return;
             }
 
-            // Validate video URL if present
             if (videoUrl && !isValidVideoUrl(videoUrl)) {
                 console.error('Validation failed: Invalid video URL:', videoUrl);
                 showError('Ungültige Video-URL im QR-Code! Bitte verwenden Sie eine gültige HTTP(S) Video-URL.');
-                
-                // Restart scanner after 3 seconds
-                setTimeout(() => {
-                    window.location.reload();
-                }, 3000);
+                setTimeout(() => window.location.reload(), 3000);
                 return;
             }
 
-            // Validate station ID if present (optional: add custom validation)
             if (stationId) {
-                // Trim whitespace
                 stationId = stationId.trim();
-                
-                // Optional: Check if station ID is not empty after trim
                 if (stationId.length === 0) {
                     console.warn('Warning: Station ID is empty after trim');
                     stationId = null;
                 }
             }
 
-            //----------------------------------------
-            // STORE results tab-local (only valid data)
-            //----------------------------------------
-
-            // Always store raw QR-Code
+            // STORE results in sessionStorage
             sessionStorage.setItem("qr_raw", decodedText);
 
-            // Only store valid values (not empty strings)
             if (stationId) {
                 sessionStorage.setItem("stationId", stationId);
                 console.log('✓ Stored stationId:', stationId);
@@ -364,13 +328,8 @@
                 console.log('✗ No videoUrl to store');
             }
 
-            //----------------------------------------
             // UI feedback
-            //----------------------------------------
-
             const infoDiv = document.getElementById('scanner-info');
-            
-            // Show what was found
             let successMessage = 'QR-Code erfolgreich gescannt!';
             if (stationId && videoUrl) {
                 successMessage += ` (Station: ${stationId})`;
@@ -382,27 +341,39 @@
             
             infoDiv.textContent = successMessage;
             infoDiv.style.background = 'rgba(0, 255, 0, 0.8)';
-
             document.getElementById('scanner-frame').classList.remove('scanning');
 
             console.log('=== Scan Complete - Redirecting ===');
 
-            //----------------------------------------
-            // Redirect to Unity loader
-            //----------------------------------------
-
-            // WICHTIG: Daten nochmal bestätigen vor Redirect
+            // Verify data before redirect
             console.log('=== BEFORE REDIRECT - Verify Data ===');
             console.log('sessionStorage.videoUrl:', sessionStorage.getItem('videoUrl'));
             console.log('sessionStorage.stationId:', sessionStorage.getItem('stationId'));
             console.log('sessionStorage.qr_raw:', sessionStorage.getItem('qr_raw'));
-            console.log('
+            console.log('=====================================');
+
+            // Redirect with URL parameters as fallback
+            setTimeout(() => {
+                const params = new URLSearchParams();
+                params.set('qr', 'scanned');
+                
+                if (videoUrl) {
+                    params.set('video', encodeURIComponent(videoUrl));
+                }
+                if (stationId) {
+                    params.set('station', encodeURIComponent(stationId));
+                }
+                
+                const redirectUrl = 'index_tracker.html?' + params.toString();
+                console.log('Redirecting to:', redirectUrl);
+                
+                window.location.href = redirectUrl;
+            }, 1000);
         }
 
-        // Error callback (optional, for debugging)
+        // Error callback
         function onScanFailure(error) {
-            // This is called very frequently, so we don't log it
-            // console.warn('QR scan error:', error);
+            // Called frequently, don't log
         }
 
         // Show error message
@@ -416,19 +387,14 @@
         // Initialize scanner
         async function initScanner() {
             try {
-                // Create Html5Qrcode instance
                 html5QrCode = new Html5Qrcode("qr-reader");
-
-                // Get available cameras
                 const devices = await Html5Qrcode.getCameras();
                 
                 if (devices && devices.length > 0) {
                     console.log('Available cameras:', devices);
 
-                    // Try to find back camera (environment facing)
                     let cameraId = devices[0].id;
                     
-                    // Look for back camera
                     const backCamera = devices.find(device => 
                         device.label.toLowerCase().includes('back') ||
                         device.label.toLowerCase().includes('rear') ||
@@ -442,17 +408,12 @@
                         console.log('Using default camera:', devices[0].label);
                     }
 
-                    // Hide loading, show scanner
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('scanner-container').style.display = 'flex';
 
-                    // Start scanning with optimized config
                     const config = {
-                        fps: 10,    // Frames per second for scanning
-                        qrbox: {    // Scanning box dimensions
-                            width: 250,
-                            height: 250
-                        },
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
                         aspectRatio: 1.0,
                         disableFlip: false,
                         videoConstraints: {
@@ -462,13 +423,7 @@
                         }
                     };
 
-                    await html5QrCode.start(
-                        cameraId,
-                        config,
-                        onScanSuccess,
-                        onScanFailure
-                    );
-
+                    await html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure);
                     console.log('Scanner started successfully');
 
                 } else {
@@ -498,7 +453,6 @@
 
         // Start scanner when page loads
         window.addEventListener('load', () => {
-            // Small delay to ensure DOM is fully ready
             setTimeout(initScanner, 100);
         });
 
@@ -511,15 +465,13 @@
             }
         });
 
-        // Handle page visibility change (pause/resume scanning)
+        // Handle page visibility change
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                // Page is hidden, pause scanning
                 if (html5QrCode && html5QrCode.isScanning) {
                     html5QrCode.pause();
                 }
             } else {
-                // Page is visible, resume scanning
                 if (html5QrCode && html5QrCode.isScanning) {
                     html5QrCode.resume();
                 }
