@@ -134,11 +134,11 @@
             }
         }
 
-        // Handle video click - redirect to tracker with autostart parameter
+        // Handle video click - redirect to QR scanner first
         videoContainer.addEventListener('click', function() {
-            console.log('Video clicked - redirecting to AR tracker...');
-            // Redirect to index_tracker.html with autostart parameter
-            window.location.href = 'index_tracker.html?autostart=true';
+            console.log('Video clicked - redirecting to QR scanner...');
+            // Redirect to QR scanner page
+            window.location.href = 'qr-scanner.html';
         });
 
         // Initialize on page load
