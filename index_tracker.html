@@ -293,6 +293,69 @@
                 window.newUrlString = url;
                 document.getElementById("confirmUrlText").innerText = "Are you sure you want to visit " + url;                
             }
+			
+			            function ShowConfirmUrl(url){
+                document.getElementById("confirmUrlDiv").style.display = "flex";
+                window.newUrlString = url;
+                document.getElementById("confirmUrlText").innerText = "Are you sure you want to visit " + url;                
+            }
+
+            // ----------------------------------------------------
+            // BACK TO SCANNER (Unity-Button ruft diese Funktion auf)
+            // ----------------------------------------------------
+            function BackToScanner() {
+                console.log("BackToScanner called from Unity");
+
+                // 1) Webcam/AR-Kamera sauber stoppen (so gut es geht)
+                try {
+                    if (window.arCamera && typeof window.arCamera.stopWebcam === "function") {
+                        window.arCamera.stopWebcam();
+                    }
+                } catch (e) {
+                    console.warn("Could not stop arCamera webcam:", e);
+                }
+
+                try {
+                    if (window.webcamStream) {
+                        window.webcamStream.getTracks().forEach(track => track.stop());
+                        window.webcamStream = null;
+                        console.log("Webcam stream stopped.");
+                    }
+                } catch (e) {
+                    console.warn("Could not stop webcamStream:", e);
+                }
+
+                // 2) Unity-Instance (wenn vorhanden) sauber quitten
+                if (window.unityInstance && typeof window.unityInstance.Quit === "function") {
+                    try {
+                        window.unityInstance.Quit().then(function () {
+                            console.log("Unity quit finished, going back to qr-scanner.html");
+                            window.unityInstance = null;
+                            window.location.href = "qr-scanner.html";
+                        }).catch(function (err) {
+                            console.warn("Unity Quit failed:", err);
+                            window.location.href = "qr-scanner.html";
+                        });
+                        return; // Warten auf Quit
+                    } catch (e) {
+                        console.warn("Error during Unity Quit:", e);
+                        // Fallback direkt auf Scanner
+                        window.location.href = "qr-scanner.html";
+                        return;
+                    }
+                }
+
+                // 3) Fallback, falls unityInstance nicht gesetzt ist
+                window.location.href = "qr-scanner.html";
+            }
+
+            window.ITRACKER_GLOBALS = {
+                //place global settings here
+                INTERNAL_SMOOTHFACTOR_POS: .075,
+            }
+
+			
+			
             window.ITRACKER_GLOBALS = {
                 //place global settings here
                 INTERNAL_SMOOTHFACTOR_POS: .075,
