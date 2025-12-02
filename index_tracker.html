@@ -30,10 +30,19 @@
             background: #fffa;
             z-index: 99;
         }
-    /* 🔥 WICHTIG: Nur hier hinzufügen! */
+   /* WICHTIG: AR-Video-Canvas darf keine Klicks fangen */
     #video-canvas {
-        pointer-events: none !important;
-        touch-action: none !important;
+        pointer-events: none;
+    }
+
+    /* Unity-Canvas nach vorne holen, sicherheitshalber */
+    #unity-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 10;
     }
     </style>
 </head>
