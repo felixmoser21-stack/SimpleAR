@@ -51,6 +51,37 @@
             width: 100% !important;
             height: 100% !important;
             object-fit: cover !important;
+            /* Fix für Android Landscape-Orientierung */
+            transform: none !important;
+        }
+
+        /* Landscape-spezifische Fixes */
+        @media screen and (orientation: landscape) {
+            #qr-reader video {
+                width: 100vw !important;
+                height: 100vh !important;
+                object-fit: cover !important;
+            }
+            
+            #qr-reader {
+                width: 100vw !important;
+                height: 100vh !important;
+            }
+            
+            /* Scanner-Frame für Landscape anpassen */
+            #scanner-frame {
+                width: 200px;
+                height: 200px;
+            }
+        }
+
+        /* Fix für html5-qrcode interne Container */
+        #qr-reader__scan_region {
+            min-height: 100% !important;
+        }
+        
+        #qr-reader__scan_region video {
+            object-fit: cover !important;
         }
 
         #qr-reader__dashboard_section {
@@ -189,9 +220,41 @@
         .scanning .corner {
             animation: pulse 1.5s ease-in-out infinite;
         }
+
+        /* Wrong Orientation Overlay - zeigt an wenn nicht im Landscape */
+        #wrong-orientation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        #wrong-orientation img {
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+        }
+
+        /* Verstecke Overlay im Landscape-Modus */
+        @media screen and (orientation: landscape) {
+            #wrong-orientation {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Wrong Orientation Overlay - wird im Portrait angezeigt -->
+    <div id="wrong-orientation">
+        <img src="WRONG_ORIENTATION.png" alt="Bitte Handy drehen">
+    </div>
+
     <div id="loading">
         <div class="spinner"></div>
         <div>Kamera wird initialisiert...</div>
@@ -219,6 +282,66 @@
 
     <script>
         let html5QrCode = null;
+        let currentOrientation = null;
+        let isRestarting = false;
+
+        // Erkennt ob Gerät im Landscape-Modus ist
+        function isLandscape() {
+            return window.innerWidth > window.innerHeight;
+        }
+
+        // Gibt die optimalen Video-Constraints basierend auf Orientierung zurück
+        function getVideoConstraints() {
+            const landscape = isLandscape();
+            console.log('Orientation:', landscape ? 'LANDSCAPE' : 'PORTRAIT');
+            
+            if (landscape) {
+                // Im Landscape: Breite > Höhe anfordern
+                return {
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 1920, min: 1280 },
+                    height: { ideal: 1080, min: 720 },
+                    aspectRatio: { ideal: 16/9 }
+                };
+            } else {
+                // Im Portrait: Höhe > Breite anfordern
+                return {
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 1080, min: 720 },
+                    height: { ideal: 1920, min: 1280 },
+                    aspectRatio: { ideal: 9/16 }
+                };
+            }
+        }
+
+        // Startet Scanner mit aktueller Orientierung neu
+        async function restartScanner() {
+            if (isRestarting) {
+                console.log('Already restarting, skipping...');
+                return;
+            }
+            
+            isRestarting = true;
+            console.log('Restarting scanner for orientation change...');
+            
+            try {
+                if (html5QrCode && html5QrCode.isScanning) {
+                    await html5QrCode.stop();
+                    console.log('Scanner stopped for restart');
+                }
+                
+                // Kurze Pause für Kamera-Freigabe
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                // Scanner neu initialisieren
+                await initScanner();
+                
+            } catch (err) {
+                console.error('Error restarting scanner:', err);
+            } finally {
+                isRestarting = false;
+            }
+        }
 
         // Helper function to validate URL
         function isValidUrl(string) {
@@ -387,6 +510,19 @@
         // Initialize scanner
         async function initScanner() {
             try {
+                // Aktuelle Orientierung speichern
+                currentOrientation = isLandscape() ? 'landscape' : 'portrait';
+                console.log('Initializing scanner in', currentOrientation, 'mode');
+                
+                // Falls html5QrCode bereits existiert, neues Objekt erstellen
+                if (html5QrCode) {
+                    try {
+                        await html5QrCode.stop();
+                    } catch (e) {
+                        // Ignorieren wenn bereits gestoppt
+                    }
+                }
+                
                 html5QrCode = new Html5Qrcode("qr-reader");
                 const devices = await Html5Qrcode.getCameras();
                 
@@ -411,20 +547,28 @@
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('scanner-container').style.display = 'flex';
 
+                    // Dynamische QR-Box Größe basierend auf Orientierung
+                    const qrBoxSize = isLandscape() ? 200 : 250;
+                    
+                    // Dynamische Video-Constraints basierend auf Orientierung
+                    const videoConstraints = getVideoConstraints();
+                    console.log('Using video constraints:', videoConstraints);
+
                     const config = {
                         fps: 10,
-                        qrbox: { width: 250, height: 250 },
-                        aspectRatio: 1.0,
+                        qrbox: { width: qrBoxSize, height: qrBoxSize },
+                        // Kein festes aspectRatio - lassen wir die Kamera entscheiden
                         disableFlip: false,
-                        videoConstraints: {
-                            facingMode: { ideal: "environment" },
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
+                        videoConstraints: videoConstraints
                     };
 
                     await html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure);
-                    console.log('Scanner started successfully');
+                    console.log('Scanner started successfully in', currentOrientation, 'mode');
+                    
+                    // Nach Start: Video-Element Styles korrigieren für Android
+                    setTimeout(() => {
+                        fixVideoOrientation();
+                    }, 100);
 
                 } else {
                     showError('Keine Kamera gefunden. Bitte stellen Sie sicher, dass Ihr Gerät eine Kamera hat.');
@@ -442,6 +586,24 @@
                 } else if (error.name === 'NotReadableError') {
                     errorMessage = 'Kamera wird bereits von einer anderen Anwendung verwendet.';
                 } else if (error.name === 'OverconstrainedError') {
+                    // Bei OverconstrainedError: Fallback ohne spezifische Constraints
+                    console.warn('OverconstrainedError - trying fallback constraints');
+                    try {
+                        const fallbackConfig = {
+                            fps: 10,
+                            qrbox: { width: 200, height: 200 },
+                            videoConstraints: {
+                                facingMode: "environment"
+                            }
+                        };
+                        await html5QrCode.start({ facingMode: "environment" }, fallbackConfig, onScanSuccess, onScanFailure);
+                        console.log('Scanner started with fallback constraints');
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('scanner-container').style.display = 'flex';
+                        return;
+                    } catch (fallbackError) {
+                        console.error('Fallback also failed:', fallbackError);
+                    }
                     errorMessage = 'Kamera-Einstellungen werden nicht unterstützt.';
                 } else if (error.name === 'SecurityError') {
                     errorMessage = 'Kamera-Zugriff nur über HTTPS möglich (außer localhost).';
@@ -450,10 +612,51 @@
                 showError(errorMessage);
             }
         }
+        
+        // Korrigiert Video-Orientierung nach dem Start (Android Fix)
+        function fixVideoOrientation() {
+            const video = document.querySelector('#qr-reader video');
+            if (video) {
+                console.log('Fixing video orientation...');
+                console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+                console.log('Window dimensions:', window.innerWidth, 'x', window.innerHeight);
+                
+                // Stelle sicher, dass das Video den Container füllt
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'cover';
+                video.style.transform = 'none';
+                
+                // Für Android: Prüfe ob Video-Dimensionen zur Orientierung passen
+                const isVideoLandscape = video.videoWidth > video.videoHeight;
+                const isScreenLandscape = isLandscape();
+                
+                console.log('Video is landscape:', isVideoLandscape);
+                console.log('Screen is landscape:', isScreenLandscape);
+                
+                // Wenn Video und Screen unterschiedliche Orientierung haben
+                // (passiert manchmal auf Android), CSS-Rotation anwenden
+                if (isVideoLandscape !== isScreenLandscape && video.videoWidth > 0) {
+                    console.log('Orientation mismatch detected - applying CSS fix');
+                    // Nicht rotieren, sondern object-fit anpassen
+                    video.style.objectFit = 'cover';
+                }
+            }
+        }
 
         // Start scanner when page loads
         window.addEventListener('load', () => {
-            setTimeout(initScanner, 100);
+            currentOrientation = isLandscape() ? 'landscape' : 'portrait';
+            
+            // Nur im Landscape-Modus Scanner starten
+            if (isLandscape()) {
+                console.log('Starting in landscape mode - initializing scanner');
+                setTimeout(initScanner, 100);
+            } else {
+                console.log('Starting in portrait mode - waiting for landscape');
+                // Loading-Spinner verstecken, da Wrong-Orientation angezeigt wird
+                document.getElementById('loading').style.display = 'none';
+            }
         });
 
         // Cleanup on page unload
@@ -477,6 +680,65 @@
                 }
             }
         });
+        
+        // Stoppt den Scanner (für Portrait-Modus)
+        async function stopScanner() {
+            if (html5QrCode) {
+                try {
+                    if (html5QrCode.isScanning) {
+                        await html5QrCode.stop();
+                        console.log('Scanner stopped for portrait mode');
+                    }
+                } catch (e) {
+                    console.warn('Error stopping scanner:', e);
+                }
+            }
+            // Scanner-Container verstecken
+            document.getElementById('scanner-container').style.display = 'none';
+        }
+
+        // Handle orientation change - WICHTIG für Android Landscape Fix
+        let orientationChangeTimeout = null;
+        
+        function handleOrientationChange() {
+            const newOrientation = isLandscape() ? 'landscape' : 'portrait';
+            
+            console.log('Orientation change detected:', currentOrientation, '->', newOrientation);
+            
+            if (currentOrientation !== newOrientation) {
+                currentOrientation = newOrientation;
+                
+                // Debounce: Warte kurz, da resize/orientationchange mehrfach feuern kann
+                if (orientationChangeTimeout) {
+                    clearTimeout(orientationChangeTimeout);
+                }
+                
+                orientationChangeTimeout = setTimeout(async () => {
+                    if (isLandscape()) {
+                        // Wechsel zu Landscape: Scanner starten
+                        console.log('Switched to landscape - starting scanner...');
+                        document.getElementById('loading').style.display = 'block';
+                        await restartScanner();
+                    } else {
+                        // Wechsel zu Portrait: Scanner stoppen
+                        console.log('Switched to portrait - stopping scanner...');
+                        await stopScanner();
+                    }
+                }, 500);
+            } else if (isLandscape()) {
+                // Auch ohne Orientierungsänderung: Video-Fix anwenden (nur im Landscape)
+                setTimeout(fixVideoOrientation, 100);
+            }
+        }
+        
+        // Orientierungsänderung erkennen (mehrere Events für Kompatibilität)
+        window.addEventListener('orientationchange', handleOrientationChange);
+        window.addEventListener('resize', handleOrientationChange);
+        
+        // Screen Orientation API (moderner, aber nicht überall verfügbar)
+        if (screen.orientation) {
+            screen.orientation.addEventListener('change', handleOrientationChange);
+        }
     </script>
 </body>
 </html>
