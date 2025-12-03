@@ -50,7 +50,7 @@
         position: fixed;
         top: 20px;
         left: 20px;
-        z-index: 10000;
+        z-index: 9999;
         background: rgba(0, 0, 0, 0.7);
         color: white;
         border: 2px solid white;
@@ -73,41 +73,9 @@
         background: rgba(255, 255, 255, 0.5);
         transform: scale(0.95);
     }
-
-    /* Wrong Orientation Overlay - zeigt an wenn nicht im Landscape */
-    #wrong-orientation {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: #000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 99999;
-    }
-
-    #wrong-orientation img {
-        width: 100vw;
-        height: 100vh;
-        object-fit: cover;
-    }
-
-    /* Verstecke Overlay im Landscape-Modus */
-    @media screen and (orientation: landscape) {
-        #wrong-orientation {
-            display: none !important;
-        }
-    }
     </style>
 </head>
 <body>
-    <!-- Wrong Orientation Overlay - wird im Portrait angezeigt, überlagert alles -->
-    <div id="wrong-orientation">
-        <img src="WRONG_ORIENTATION.png" alt="Bitte Handy drehen">
-    </div>
-
     <!--IMAGETARGETS-->
 		<imagetarget id='bear' src='targets/bear.png'></imagetarget>
 		<imagetarget id='bfly' src='targets/bfly.png'></imagetarget>
@@ -441,103 +409,12 @@
                 INTERNAL_SMOOTHFACTOR_POS: .075,
             }
 
-            // ----------------------------------------------------
-            // ORIENTATION HANDLING - Pausiert nur iTracker bei Portrait
-            // ----------------------------------------------------
-            
-            // Prüft ob Gerät im Landscape-Modus ist
-            function isLandscape() {
-                return window.innerWidth > window.innerHeight;
+			
+			
+            window.ITRACKER_GLOBALS = {
+                //place global settings here
+                INTERNAL_SMOOTHFACTOR_POS: .075,
             }
-            
-            // Speichert den aktuellen Zustand
-            let wasInLandscape = isLandscape();
-            let trackerWasPaused = false;
-            
-            // Pausiert den Image Tracker
-            function pauseTracker() {
-                console.log('[Orientation] Pausing iTracker for portrait mode...');
-                
-                if (window.iTracker && window.iTracker.isStarted) {
-                    try {
-                        window.iTracker.onStartResize();  // Stoppt den Tracker temporär
-                        trackerWasPaused = true;
-                        console.log('[Orientation] ✓ ImageTracker paused');
-                    } catch (e) {
-                        console.warn('[Orientation] Could not pause iTracker:', e);
-                    }
-                }
-            }
-            
-            // Setzt den Image Tracker fort
-            function resumeTracker() {
-                console.log('[Orientation] Resuming iTracker for landscape mode...');
-                
-                if (window.iTracker && trackerWasPaused) {
-                    try {
-                        window.iTracker.onFinishedResize();  // Setzt den Tracker fort
-                        trackerWasPaused = false;
-                        console.log('[Orientation] ✓ ImageTracker resumed');
-                    } catch (e) {
-                        console.warn('[Orientation] Could not resume iTracker:', e);
-                    }
-                }
-                
-                // Canvas-Größe aktualisieren (wichtig nach Orientierungswechsel)
-                if (canvas) {
-                    canvas.style.width = window.innerWidth + "px";
-                    canvas.style.height = window.innerHeight + "px";
-                }
-            }
-            
-            // Handler für Orientierungsänderungen
-            function handleOrientationChange() {
-                const nowLandscape = isLandscape();
-                
-                if (wasInLandscape && !nowLandscape) {
-                    // Wechsel von Landscape zu Portrait
-                    console.log('[Orientation] Changed to PORTRAIT - pausing tracker...');
-                    pauseTracker();
-                } else if (!wasInLandscape && nowLandscape) {
-                    // Wechsel von Portrait zu Landscape
-                    console.log('[Orientation] Changed to LANDSCAPE - resuming tracker...');
-                    resumeTracker();
-                }
-                
-                wasInLandscape = nowLandscape;
-            }
-            
-            // Event Listener für Orientierungsänderungen
-            window.addEventListener('orientationchange', function() {
-                // Kurze Verzögerung, da die Dimensionen sich erst nach dem Event ändern
-                setTimeout(handleOrientationChange, 100);
-            });
-            
-            window.addEventListener('resize', function() {
-                // Debounce für resize events
-                clearTimeout(window._orientationResizeTimeout);
-                window._orientationResizeTimeout = setTimeout(handleOrientationChange, 200);
-            });
-            
-            // Screen Orientation API (moderner)
-            if (screen.orientation) {
-                screen.orientation.addEventListener('change', function() {
-                    setTimeout(handleOrientationChange, 100);
-                });
-            }
-            
-            // Initial check beim Laden
-            window.addEventListener('load', function() {
-                if (!isLandscape()) {
-                    console.log('[Orientation] Started in portrait mode - tracker will start paused');
-                    // Warte bis iTracker initialisiert ist, dann pausieren
-                    setTimeout(function() {
-                        if (!isLandscape() && window.iTracker) {
-                            pauseTracker();
-                        }
-                    }, 2000);
-                }
-            });
             
     </script>
 	<script src="autostart.js"></script>
