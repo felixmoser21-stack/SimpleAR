@@ -110,7 +110,7 @@
         <img src="WRONG_ORIENTATION.png" alt="Bitte Handy drehen">
     </div>
 
-    <!--IMAGETARGETS-->
+    <!-- IMAGETARGETS (wie im Build) -->
     <imagetarget id="bear"   src="targets/bear.png"></imagetarget>
     <imagetarget id="bfly"   src="targets/bfly.png"></imagetarget>
     <imagetarget id="flower" src="targets/flower.png"></imagetarget>
@@ -118,11 +118,13 @@
     <imagetarget id="reel"   src="targets/reel.png"></imagetarget>
     <imagetarget id="rmn"    src="targets/rmn.png"></imagetarget>
 
+    <!-- Webcam & Videobackground -->
     <video id="webcam-video" muted autoplay playsinline
            style="width:1px;position:absolute"></video>
     <canvas id="video-canvas"
             style="width:100%; height:100%; object-fit:cover; position:absolute"></canvas>
 
+    <!-- Start-Overlay -->
     <div id="startARDiv" class="ctaDiv">
         <select id="chooseCamSel" style="display: none;" onchange="SelectCam()"></select>
         <p style="text-align: center; width:60vw;">
@@ -133,6 +135,7 @@
         </button>
     </div>
 
+    <!-- Screenshot-Overlay -->
     <div id="screenshotDiv" style="display: none;" class="ctaDiv">
         <div style="position:relative; background-color:white; padding:10px;
                     box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3),
@@ -146,6 +149,7 @@
         </div>
     </div>
 
+    <!-- URL-Bestätigung -->
     <div id="confirmUrlDiv" style="display: none;" class="ctaDiv">
         <div style="position:relative; background-color:white; padding:10px;
                     box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3),
@@ -167,6 +171,7 @@
         </div>
     </div>
 
+    <!-- Fehler-Overlay -->
     <div id="errorDiv" class="ctaDiv" style="display: none; background:#aaa">
         <p id="errorText" style="text-align: center; width:60vw; color:white"></p>
     </div>
@@ -179,6 +184,7 @@
         ←
     </button>
 
+    <!-- Unity-Container -->
     <div id="unity-container" class="unity-mobile">
         <canvas id="unity-canvas"
                 style="width: 100%; height: 100%; background: #0000; z-index: 100"></canvas>
@@ -193,15 +199,22 @@
     <!-- Imagine / Unity Scripts -->
     <script src="arcamera.js" type="text/javascript"></script>
     <script src="itracker.js" type="text/javascript"></script>
-    <!-- Loader ist NICHT gz-komprimiert -->
     <script src="Build/ZOO.loader.js"></script>
 
     <script>
+        // ---------- iTracker + ARCamera initialisieren ----------
+        var container = document.querySelector("#unity-container");
+        var canvas    = document.querySelector("#unity-canvas");
+        var loadingBar      = document.querySelector("#unity-loading-bar");
+        var progressBarFull = document.querySelector("#unity-progress-bar-full");
+
         var initialize = async () => {
             var unityCanvas = document.querySelector("#unity-canvas");
             var videoCanvas = document.querySelector("#video-canvas");
+
             window.arCamera = new ARCamera(unityCanvas, videoCanvas);
             window.iTracker = new ImageTracker(arCamera);
+
             try {
                 await window.iTracker.initialize("./opencv.js");
                 console.log("ImageTracker initialized!");
@@ -217,13 +230,9 @@
         };
         initialize();
 
-        var container = document.querySelector("#unity-container");
-        var canvas = document.querySelector("#unity-canvas");
-        var loadingBar = document.querySelector("#unity-loading-bar");
-        var progressBarFull = document.querySelector("#unity-progress-bar-full");
-
+        // ---------- Unity starten (GZIP-Build) ----------
         function StartAR() {
-            canvas.style.width = window.innerWidth + "px";
+            canvas.style.width  = window.innerWidth  + "px";
             canvas.style.height = window.innerHeight + "px";
 
             document.getElementById("startARDiv").style.display = "none";
@@ -231,7 +240,7 @@
             createUnityInstance(
                 document.querySelector("#unity-canvas"),
                 {
-                    /* WICHTIG: GZIP-Dateien */
+                    // exakt wie im funktionierenden Build:
                     dataUrl:      "Build/ZOO.data.gz",
                     frameworkUrl: "Build/ZOO.framework.js.gz",
                     codeUrl:      "Build/ZOO.wasm.gz",
@@ -239,9 +248,6 @@
                     companyName: "Storiis",
                     productName: "Storiis",
                     productVersion: "2.0.0",
-                    // webglContextAttributes: { "preserveDrawingBuffer": true },
-                    // matchWebGLToCanvasSize: false,
-                    // devicePixelRatio: 1,
                 },
                 (progress) => {
                     progressBarFull.style.width = 100 * progress + "%";
@@ -252,6 +258,7 @@
                     RequestWebcam();
                 loadingBar.style.display = "none";
 
+                // HTML-Back-Button aktivieren
                 var htmlBackBtn = document.getElementById("html-back-button");
                 if (htmlBackBtn) {
                     htmlBackBtn.style.display = "flex";
@@ -262,7 +269,7 @@
             loadingBar.style.display = "block";
         }
 
-        //Set Facing Mode here ('environment', 'user', '')
+        // ---------- Webcam / Facing Mode ----------
         window.unityFacingMode = "environment";
         window.WEBCAM_SETTINGS = {
             video: {
@@ -336,7 +343,8 @@
 
             var select = document.getElementById("chooseCamSel");
             select.style.display = "block";
-            camDevices = camDevices.reverse();
+            camDevices = camDevices.reverse(); // wie im Imagine-Beispiel
+
             let count = 0;
             camDevices.forEach(mediaDevice => {
                 const option = document.createElement('option');
@@ -418,6 +426,7 @@
                 "Are you sure you want to visit " + url;
         }
 
+        // ---------- Zurück zum Scanner ----------
         function BackToScanner() {
             console.log("BackToScanner called from Unity");
 
@@ -460,16 +469,17 @@
             window.location.href = "qr-scanner.html";
         }
 
+        // ---------- iTracker Globals ----------
         window.ITRACKER_GLOBALS = {
             INTERNAL_SMOOTHFACTOR_POS: .075,
         };
 
-        // --- Orientation Handling (wie bei dir) ---
+        // ---------- Orientation Handling (Tracker pausieren bei Portrait) ----------
         function isLandscape() {
             return window.innerWidth > window.innerHeight;
         }
 
-        let wasInLandscape = isLandscape();
+        let wasInLandscape  = isLandscape();
         let trackerWasPaused = false;
 
         function pauseTracker() {
@@ -497,7 +507,7 @@
                 }
             }
             if (canvas) {
-                canvas.style.width = window.innerWidth + "px";
+                canvas.style.width  = window.innerWidth  + "px";
                 canvas.style.height = window.innerHeight + "px";
             }
         }
@@ -541,6 +551,7 @@
         });
     </script>
 
+    <!-- optional, falls du Autostart o.ä. machst -->
     <script src="autostart.js"></script>
 </body>
 </html>
