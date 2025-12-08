@@ -115,23 +115,32 @@
 
         // Handle orientation change
         function handleOrientation() {
-            if (isLandscape()) {
-                // Landscape mode - show video
-                wrongOrientationOverlay.style.display = 'none';
-                videoContainer.style.display = 'block';
-
-                // Start video if not already playing
-                homeVideo.play().catch(err => {
-                    console.log('Video autoplay prevented:', err);
-                });
-
-                // Request fullscreen to hide Safari UI
-                requestFullscreen();
-            } else {
-                // Portrait mode - show wrong orientation overlay
-                wrongOrientationOverlay.style.display = 'flex';
-                videoContainer.style.display = 'none';
-            }
+            // AUSKOMMENTIERT: Landscape-Erzwingung - teste jetzt auch Portrait
+            // if (isLandscape()) {
+            //     // Landscape mode - show video
+            //     wrongOrientationOverlay.style.display = 'none';
+            //     videoContainer.style.display = 'block';
+            //     homeVideo.play().catch(err => {
+            //         console.log('Video autoplay prevented:', err);
+            //     });
+            //     requestFullscreen();
+            // } else {
+            //     // Portrait mode - show wrong orientation overlay
+            //     wrongOrientationOverlay.style.display = 'flex';
+            //     videoContainer.style.display = 'none';
+            // }
+            
+            // Zeige Video in JEDER Orientierung
+            wrongOrientationOverlay.style.display = 'none';
+            videoContainer.style.display = 'block';
+            
+            // Start video if not already playing
+            homeVideo.play().catch(err => {
+                console.log('Video autoplay prevented:', err);
+            });
+            
+            // Request fullscreen to hide Safari UI
+            requestFullscreen();
         }
 
         // Handle video click - redirect to QR scanner first

@@ -57,13 +57,12 @@
             image-orientation: from-image !important;
         }
 
-        /* Landscape-spezifische Fixes */
-        @media screen and (orientation: landscape) {
+        /* Landscape-spezifische Fixes - AUSKOMMENTIERT */
+        /* @media screen and (orientation: landscape) {
             #qr-reader video {
                 width: 100vw !important;
                 height: 100vh !important;
                 object-fit: cover !important;
-                /* Safari Fix: Stelle sicher dass Video nicht rotiert wird */
                 transform: none !important;
                 -webkit-transform: none !important;
             }
@@ -73,12 +72,11 @@
                 height: 100vh !important;
             }
             
-            /* Scanner-Frame für Landscape anpassen */
             #scanner-frame {
                 width: 200px;
                 height: 200px;
             }
-        }
+        } */
 
         /* Fix für html5-qrcode interne Container */
         #qr-reader__scan_region {
@@ -702,15 +700,18 @@
         window.addEventListener('load', () => {
             currentOrientation = isLandscape() ? 'landscape' : 'portrait';
             
-            // Nur im Landscape-Modus Scanner starten
-            if (isLandscape()) {
-                console.log('Starting in landscape mode - initializing scanner');
-                setTimeout(initScanner, 100);
-            } else {
-                console.log('Starting in portrait mode - waiting for landscape');
-                // Loading-Spinner verstecken, da Wrong-Orientation angezeigt wird
-                document.getElementById('loading').style.display = 'none';
-            }
+            // AUSKOMMENTIERT: Landscape-Erzwingung - teste jetzt auch Portrait
+            // if (isLandscape()) {
+            //     console.log('Starting in landscape mode - initializing scanner');
+            //     setTimeout(initScanner, 100);
+            // } else {
+            //     console.log('Starting in portrait mode - waiting for landscape');
+            //     document.getElementById('loading').style.display = 'none';
+            // }
+            
+            // Starte Scanner in JEDER Orientierung
+            console.log('Starting scanner in', currentOrientation, 'mode');
+            setTimeout(initScanner, 100);
         });
 
         // Cleanup on page unload
