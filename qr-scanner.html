@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>QR-Code Scanner Debug</title>
+    <title>QR-Code Scanner</title>
     <style>
         * {
             margin: 0;
@@ -179,7 +179,7 @@
             animation: pulse 1.5s ease-in-out infinite;
         }
 
-        /* Sichtbare Debug-Konsole Unten */
+        /* Sichtbare Debug-Konsole unten */
         #debug-overlay {
             position: fixed;
             bottom: 0;
@@ -243,15 +243,11 @@
     <!-- qr-scanner Library -->
     <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
     <script>
-        // Worker-Pfad für qr-scanner
-        QrScanner.WORKER_PATH = 'https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js';
-
         let qrScanner = null;
         let orientationChangeTimeout = null;
         let isRestarting = false;
-        let hasScanned = false; // verhindert mehrfaches Auslösen
+        let hasScanned = false;
 
-        // Sichtbares Debug-Logging (auch auf iOS)
         function debugLog() {
             const msg = [...arguments].map(a =>
                 typeof a === "object" ? JSON.stringify(a, null, 2) : String(a)
@@ -262,10 +258,7 @@
                 dbg.textContent += msg + "\n";
                 dbg.parentElement.scrollTop = dbg.parentElement.scrollHeight;
             }
-
-            try {
-                console.log("[DEBUG]", msg);
-            } catch (e) {}
+            try { console.log("[DEBUG]", msg); } catch (e) {}
         }
 
         function showError(message) {
@@ -286,29 +279,21 @@
             }
         }
 
-        // Entspannter Video-URL-Check: nur "ist es eine HTTP/HTTPS-URL?"
         function isValidVideoUrl(string) {
+            // Für deine Anwendung reicht: irgendeine http/https-URL
             return isValidUrl(string);
         }
 
-        // === Scan-Erfolgslogik: Scanner stoppt, keine Redirect-Ausführung ===
         async function handleDecoded(decodedText) {
-            debugLog("SCAN TRIGGERED");
-
-            // Scanner sofort stoppen – keine weiteren Scans
-            try {
-                if (qrScanner) {
-                    await qrScanner.stop();
-                    debugLog("Scanner STOPPED after first decode.");
-                }
-            } catch (e) {
-                debugLog("Error stopping scanner:", e);
+            // decodedText ist jetzt garantiert ein STRING
+            if (hasScanned) {
+                debugLog("Scan already handled, ignoring further results.");
+                return;
             }
-
             hasScanned = true;
 
-            debugLog('=== QR-Code Scan Success ===');
-            debugLog('RAW QR TEXT:', decodedText);
+            debugLog("=== QR-Code Scan Success ===");
+            debugLog("RAW QR TEXT:", decodedText);
 
             let stationId = null;
             let videoUrl = null;
@@ -319,34 +304,50 @@
                     stationId = urlObj.searchParams.get("station");
                     videoUrl = urlObj.searchParams.get("video");
 
-                    debugLog("URL parsed:", {
+                    debugLog("Parsed as URL:", {
                         href: urlObj.href,
                         stationId,
                         videoUrl
                     });
 
-                    if (!videoUrl && (
-                        decodedText.endsWith(".mp4") ||
-                        decodedText.endsWith(".mov") ||
-                        decodedText.endsWith(".webm")
-                    )) {
+                    const hasVideoExt =
+                        decodedText.toLowerCase().endsWith(".mp4") ||
+                        decodedText.toLowerCase().endsWith(".mov") ||
+                        decodedText.toLowerCase().endsWith(".webm") ||
+                        decodedText.toLowerCase().endsWith(".mkv") ||
+                        decodedText.toLowerCase().endsWith(".ogg");
+
+                    // Fallback 1: Datei-URL ohne video-Param
+                    if (!videoUrl && hasVideoExt) {
                         videoUrl = decodedText;
-                        debugLog("Fallback videoUrl from file extension:", videoUrl);
+                        debugLog("Fallback: videoUrl from file extension:", videoUrl);
+                    }
+
+                    // Fallback 2: generische http-URL ohne Params → als Video verwenden
+                    if (!videoUrl && !stationId && isValidUrl(decodedText)) {
+                        videoUrl = decodedText;
+                        debugLog("Fallback: generic URL used as videoUrl:", videoUrl);
                     }
 
                 } else if (decodedText.includes("=")) {
+                    // Nur Query-Teil: station=...&video=...
                     const params = new URLSearchParams(decodedText);
                     stationId = params.get("station");
                     videoUrl = params.get("video");
-
-                    debugLog("Query-only parsed:", { stationId, videoUrl });
-                } else if (
-                    decodedText.endsWith(".mp4") ||
-                    decodedText.endsWith(".mov") ||
-                    decodedText.endsWith(".webm")
-                ) {
-                    videoUrl = decodedText;
-                    debugLog("Bare video path parsed as videoUrl:", videoUrl);
+                    debugLog("Parsed as query string:", { stationId, videoUrl });
+                } else {
+                    // Fallback: nackte Pfade mit .mp4 etc.
+                    const lower = decodedText.toLowerCase();
+                    if (
+                        lower.endsWith(".mp4") ||
+                        lower.endsWith(".mov") ||
+                        lower.endsWith(".webm") ||
+                        lower.endsWith(".mkv") ||
+                        lower.endsWith(".ogg")
+                    ) {
+                        videoUrl = decodedText;
+                        debugLog("Bare path parsed as videoUrl:", videoUrl);
+                    }
                 }
             } catch (err) {
                 debugLog("PARSE ERROR:", err.message || String(err));
@@ -363,7 +364,7 @@
 
             if (!stationId && !videoUrl) {
                 debugLog("NO VALID PARSE RESULT — STOPPING HERE.");
-                showError("QR-Code konnte nicht verstanden werden.");
+                showError("QR-Code enthält keine gültigen Daten (Station oder Video).");
                 return;
             }
 
@@ -375,7 +376,7 @@
                     return;
                 }
             } else {
-                debugLog("No videoUrl, only stationId present (might be valid in deinem Flow).");
+                debugLog("No videoUrl, only stationId present.");
             }
 
             // sessionStorage schreiben
@@ -383,27 +384,37 @@
             if (stationId) sessionStorage.setItem("stationId", stationId); else sessionStorage.removeItem("stationId");
             if (videoUrl) sessionStorage.setItem("videoUrl", videoUrl);   else sessionStorage.removeItem("videoUrl");
 
-            debugLog("Stored sessionStorage.qr_raw =", sessionStorage.getItem("qr_raw"));
-            debugLog("Stored sessionStorage.stationId =", sessionStorage.getItem("stationId"));
-            debugLog("Stored sessionStorage.videoUrl =", sessionStorage.getItem("videoUrl"));
+            debugLog("sessionStorage.qr_raw =", sessionStorage.getItem("qr_raw"));
+            debugLog("sessionStorage.stationId =", sessionStorage.getItem("stationId"));
+            debugLog("sessionStorage.videoUrl =", sessionStorage.getItem("videoUrl"));
 
             const infoDiv = document.getElementById("scanner-info");
-            let successMessage = "Scan abgeschlossen (Debug-Modus) – Redirect wird NICHT ausgeführt.";
+            let successMessage = "QR-Code erfolgreich gescannt!";
+            if (stationId && videoUrl) {
+                successMessage += ` (Station: ${stationId})`;
+            } else if (stationId) {
+                successMessage += ` (Station: ${stationId})`;
+            } else if (videoUrl) {
+                successMessage += " (Video gefunden)";
+            }
             infoDiv.textContent = successMessage;
             infoDiv.style.background = "rgba(0, 150, 0, 0.8)";
             document.getElementById("scanner-frame").classList.remove("scanning");
             debugLog("UI message:", successMessage);
 
-            // Redirect-URL nur berechnen und anzeigen – NICHT ausführen
+            // Redirect vorbereiten
             const params = new URLSearchParams();
             params.set("qr", "scanned");
             if (videoUrl) params.set("video", videoUrl);
             if (stationId) params.set("station", stationId);
 
             const redirectUrl = "index_tracker.html?" + params.toString();
-            debugLog("FINAL REDIRECT URL (NOT EXECUTED):", redirectUrl);
+            debugLog("FINAL REDIRECT URL:", redirectUrl);
 
-            debugLog("DEBUG-MODUS: Bitte URL prüfen und ggf. manuell im Browser aufrufen.");
+            // kleine Pause, damit man das Debug sieht
+            setTimeout(() => {
+                window.location.href = redirectUrl;
+            }, 1000);
         }
 
         async function initScanner() {
@@ -412,52 +423,62 @@
             const videoElem = document.getElementById('qr-video');
 
             try {
-                debugLog('Initializing qr-scanner...');
+                debugLog("Initializing qr-scanner...");
                 loading.style.display = 'block';
                 container.style.display = 'flex';
 
-                hasScanned = false; // bei jedem Init zurücksetzen
+                hasScanned = false;
 
                 if (!qrScanner) {
                     qrScanner = new QrScanner(
                         videoElem,
-                        result => {
-                            debugLog('Decoded result from qr-scanner callback:', result);
-                            handleDecoded(result);
+                        scanResult => {
+                            // scanResult kann String oder Objekt sein
+                            debugLog("Decoded result from qr-scanner callback:", scanResult);
+                            const decodedText = (typeof scanResult === "string")
+                                ? scanResult
+                                : scanResult.data;
+                            handleDecoded(decodedText);
                         },
                         {
                             preferredCamera: 'environment',
                             highlightScanRegion: false,
-                            highlightCodeOutline: false
+                            highlightCodeOutline: false,
+                            returnDetailedScanResult: true // wir wollen das Objekt, nehmen aber nur .data
                         }
                     );
                 }
 
                 await qrScanner.start();
-                debugLog('qr-scanner started successfully.');
+                debugLog("qr-scanner started successfully.");
                 loading.style.display = 'none';
             } catch (err) {
-                debugLog('qr-scanner init error:', err.message || String(err));
+                debugLog("qr-scanner init error:", err.message || String(err));
                 loading.style.display = 'none';
-                showError('Kamera-Zugriff fehlgeschlagen. Bitte HTTPS & Kameraberechtigung prüfen.');
+                showError("Kamera-Zugriff fehlgeschlagen. Bitte HTTPS & Kameraberechtigung prüfen.");
             }
         }
 
         async function restartScanner() {
             if (isRestarting) {
-                debugLog('Already restarting, skip...');
+                debugLog("Already restarting, skip...");
                 return;
             }
+            if (hasScanned) {
+                debugLog("Restart requested but scan already done -> ignore.");
+                return;
+            }
+
             isRestarting = true;
-            debugLog('Restarting qr-scanner (orientation change)...');
+            debugLog("Restarting qr-scanner (orientation change)...");
 
             try {
                 if (qrScanner) {
                     await qrScanner.stop();
-                    debugLog('qr-scanner stopped for restart.');
+                    debugLog("qr-scanner stopped for restart.");
                 }
             } catch (e) {
-                debugLog('Error stopping on restart:', e.message || String(e));
+                debugLog("Error stopping on restart:", e.message || String(e));
             }
 
             try {
@@ -468,33 +489,31 @@
         }
 
         function handleOrientationChange() {
-            // Nach einem erfolgreichen Scan NICHT neu starten (kein Loop)
+            debugLog("Orientation/resize event detected");
             if (hasScanned) {
-                debugLog('Orientation change ignored (hasScanned = true).');
+                debugLog("Orientation change ignored (hasScanned = true).");
                 return;
             }
-
-            debugLog('Orientation/resize event detected (qr-scanner)');
 
             if (orientationChangeTimeout) {
                 clearTimeout(orientationChangeTimeout);
             }
 
             orientationChangeTimeout = setTimeout(() => {
-                debugLog('Orientation stabilized, restarting qr-scanner...');
+                debugLog("Orientation stabilized, restarting scanner...");
                 restartScanner();
             }, 500);
         }
 
         window.addEventListener('load', () => {
-            debugLog('Page loaded, starting qr-scanner...');
+            debugLog("Page loaded, starting qr-scanner...");
             initScanner();
         });
 
         window.addEventListener('beforeunload', () => {
             if (qrScanner) {
                 qrScanner.stop();
-                debugLog('qr-scanner stopped on beforeunload.');
+                debugLog("qr-scanner stopped on beforeunload.");
             }
         });
 
@@ -502,21 +521,20 @@
             if (!qrScanner) return;
             if (document.hidden) {
                 qrScanner.pause();
-                debugLog('Document hidden: qr-scanner paused.');
+                debugLog("Document hidden: qr-scanner paused.");
             } else {
-                // nach einem Debug-Scan nicht wieder aufnehmen
                 if (!hasScanned) {
                     qrScanner.resume();
-                    debugLog('Document visible: qr-scanner resumed.');
+                    debugLog("Document visible: qr-scanner resumed.");
                 } else {
-                    debugLog('Document visible: resume ignored (hasScanned = true).');
+                    debugLog("Document visible: resume ignored (hasScanned = true).");
                 }
             }
         });
 
         window.addEventListener('orientationchange', handleOrientationChange);
         window.addEventListener('resize', handleOrientationChange);
-        if (screen.orientation) {
+        if (screen.orientation && screen.orientation.addEventListener) {
             screen.orientation.addEventListener('change', handleOrientationChange);
         }
     </script>
