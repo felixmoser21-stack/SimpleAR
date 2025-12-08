@@ -621,19 +621,30 @@
             }
         }
         
-        // Korrigiert Video-Orientierung nach dem Start (Android Fix)
+        // Korrigiert Video-Orientierung nach dem Start (Safari/Android Fix)
         function fixVideoOrientation() {
             const video = document.querySelector('#qr-reader video');
-            if (video) {
+            const qrReader = document.querySelector('#qr-reader');
+            
+            if (video && qrReader) {
                 console.log('Fixing video orientation...');
                 console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
                 console.log('Window dimensions:', window.innerWidth, 'x', window.innerHeight);
                 
-                // Stelle sicher, dass das Video den Container füllt
+                // Reset alle Styles
                 video.style.width = '100%';
                 video.style.height = '100%';
                 video.style.objectFit = 'cover';
                 video.style.transform = 'none';
+                video.style.zoom = '1';
+                video.style.scale = '1';
+                
+                // QR-Reader Container auch resetten
+                qrReader.style.width = '100%';
+                qrReader.style.height = '100%';
+                qrReader.style.zoom = '1';
+                qrReader.style.scale = '1';
+                qrReader.style.transform = 'none';
                 
                 // Für Android: Prüfe ob Video-Dimensionen zur Orientierung passen
                 const isVideoLandscape = video.videoWidth > video.videoHeight;
@@ -650,6 +661,41 @@
                     video.style.objectFit = 'cover';
                 }
             }
+        }
+        
+        // Vollständiger Reset beim Orientierungswechsel
+        function resetVideoContainer() {
+            const video = document.querySelector('#qr-reader video');
+            const qrReader = document.querySelector('#qr-reader');
+            const scanRegion = document.querySelector('#qr-reader__scan_region');
+            
+            if (video) {
+                video.style.cssText = '';
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'cover';
+                video.style.transform = 'none';
+                video.style.zoom = '1';
+                video.style.scale = '1';
+            }
+            
+            if (qrReader) {
+                qrReader.style.cssText = '';
+                qrReader.style.width = '100%';
+                qrReader.style.height = '100%';
+                qrReader.style.zoom = '1';
+                qrReader.style.scale = '1';
+            }
+            
+            if (scanRegion) {
+                scanRegion.style.cssText = '';
+                scanRegion.style.width = '100%';
+                scanRegion.style.height = '100%';
+                scanRegion.style.zoom = '1';
+                scanRegion.style.scale = '1';
+            }
+            
+            console.log('Video container reset complete');
         }
 
         // Start scanner when page loads
@@ -722,6 +768,9 @@
                 }
                 
                 orientationChangeTimeout = setTimeout(async () => {
+                    // Vollständiger Reset BEVOR Scanner neu gestartet wird
+                    resetVideoContainer();
+                    
                     if (isLandscape()) {
                         // Wechsel zu Landscape: Scanner starten
                         console.log('Switched to landscape - starting scanner...');
@@ -735,7 +784,10 @@
                 }, 500);
             } else if (isLandscape()) {
                 // Auch ohne Orientierungsänderung: Video-Fix anwenden (nur im Landscape)
-                setTimeout(fixVideoOrientation, 100);
+                setTimeout(() => {
+                    resetVideoContainer();
+                    fixVideoOrientation();
+                }, 100);
             }
         }
         
