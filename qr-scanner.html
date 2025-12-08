@@ -216,6 +216,7 @@
         let qrScanner = null;
         let orientationChangeTimeout = null;
         let isRestarting = false;
+        let hasScanned = false; // verhindert mehrfaches Auslösen
 
         function showError(message) {
             const errorDiv = document.getElementById('error-message');
@@ -240,14 +241,19 @@
             return videoExtensions.some(ext => lowerUrl.includes(ext));
         }
 
-        // === Scan-Erfolgslogik inkl. URL-Übergabe ===
+        // === Scan-Erfolgslogik inkl. URL-Übergabe zu index_tracker.html ===
         function handleDecoded(decodedText) {
+            if (hasScanned) {
+                console.log('Scan already handled, ignore further results.');
+                return;
+            }
+            hasScanned = true;
+
             console.log('=== QR-Code Scan Success ===');
             console.log('Raw QR-Code:', decodedText);
 
-            if (qrScanner) {
-                qrScanner.stop().catch(err => console.error('Error stopping scanner:', err));
-            }
+            // Scanner bewusst NICHT stoppen: Bild bleibt "live",
+            // bis wir weiterleiten.
 
             let stationId = null;
             let videoUrl = null;
@@ -330,11 +336,13 @@
             infoDiv.style.background = 'rgba(0, 255, 0, 0.8)';
             document.getElementById('scanner-frame').classList.remove('scanning');
 
+            console.log('Redirect in 1s vorbereitet …');
+
             setTimeout(() => {
                 const params = new URLSearchParams();
                 params.set('qr', 'scanned');
-                if (videoUrl) params.set('video', encodeURIComponent(videoUrl));
-                if (stationId) params.set('station', encodeURIComponent(stationId));
+                if (videoUrl) params.set('video', videoUrl);     // kein doppeltes encode
+                if (stationId) params.set('station', stationId); // kein doppeltes encode
 
                 const redirectUrl = 'index_tracker.html?' + params.toString();
                 console.log('Redirecting to:', redirectUrl);
@@ -351,6 +359,8 @@
                 console.log('Initializing qr-scanner...');
                 loading.style.display = 'block';
                 container.style.display = 'flex';
+
+                hasScanned = false; // bei jedem Init zurücksetzen
 
                 if (!qrScanner) {
                     qrScanner = new QrScanner(
