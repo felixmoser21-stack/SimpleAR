@@ -727,90 +727,72 @@
         INTERNAL_SMOOTHFACTOR_POS: .075,
       };
 
-      // --- Orientation Handling: AUSKOMMENTIERT - Tracker wird nicht pausiert ---
-      // Alle Pausier-Funktionen sind auskommentiert, um zu testen ob das Zoom-Problem behoben wird
+      // --- Orientation Handling: Wrong-Orientation Bild mit Verzögerung anzeigen ---
 
-      // function isLandscape() {
-      //   return window.innerWidth > window.innerHeight;
-      // }
+      function isLandscape() {
+        return window.innerWidth > window.innerHeight;
+      }
 
-      // let wasInLandscape   = isLandscape();
-      // let trackerWasPaused = false;
+      let wasInLandscape = isLandscape();
+      let wrongOrientationTimeout = null;
 
-      // function pauseTracker() {
-      //   console.log('[Orientation] Pausing iTracker for portrait mode...');
-      //   if (window.iTracker && window.iTracker.isStarted) {
-      //     try {
-      //       window.iTracker.onStartResize();
-      //       trackerWasPaused = true;
-      //       console.log('[Orientation] ✓ ImageTracker paused');
-      //     } catch (e) {
-      //       console.warn('[Orientation] Could not pause iTracker:', e);
-      //     }
-      //   }
-      // }
+      function showWrongOrientationWithDelay() {
+        const wrongOrientationDiv = document.getElementById('wrong-orientation');
+        
+        // Zeige das Bild sofort
+        wrongOrientationDiv.style.display = 'flex';
+        
+        // Verstecke es nach 800ms
+        if (wrongOrientationTimeout) {
+          clearTimeout(wrongOrientationTimeout);
+        }
+        wrongOrientationTimeout = setTimeout(() => {
+          wrongOrientationDiv.style.display = 'none';
+        }, 800);
+      }
 
-      // function resumeTracker() {
-      //   console.log('[Orientation] Resuming iTracker for landscape mode...');
-      //   if (window.iTracker && trackerWasPaused) {
-      //     try {
-      //       window.iTracker.onFinishedResize();
-      //       trackerWasPaused = false;
-      //       console.log('[Orientation] ✓ ImageTracker resumed');
-      //     } catch (e) {
-      //       console.warn('[Orientation] Could not resume iTracker:', e);
-      //     }
-      //   }
+      function handleOrientationChange() {
+        const nowLandscape = isLandscape();
+        
+        if (wasInLandscape && !nowLandscape) {
+          // Wechsel zu Portrait: Wrong-Orientation Bild anzeigen
+          console.log('[Orientation] Changed to PORTRAIT');
+          document.getElementById('wrong-orientation').style.display = 'flex';
+          if (wrongOrientationTimeout) {
+            clearTimeout(wrongOrientationTimeout);
+          }
+        } else if (!wasInLandscape && nowLandscape) {
+          // Wechsel zu Landscape: Wrong-Orientation Bild mit Verzögerung verstecken
+          console.log('[Orientation] Changed to LANDSCAPE');
+          showWrongOrientationWithDelay();
+        }
+        
+        wasInLandscape = nowLandscape;
+      }
 
-      //   // Nach Orientierungswechsel beide Canvas anpassen
-      //   resizeCanvases();
-      // }
+      window.addEventListener('orientationchange', function () {
+        setTimeout(handleOrientationChange, 100);
+      });
 
-      // function handleOrientationChange() {
-      //   const nowLandscape = isLandscape();
-      //   if (wasInLandscape && !nowLandscape) {
-      //     console.log('[Orientation] Changed to PORTRAIT - pausing tracker...');
-      //     pauseTracker();
-      //   } else if (!wasInLandscape && nowLandscape) {
-      //     console.log('[Orientation] Changed to LANDSCAPE - resuming tracker...');
-      //     resumeTracker();
-      //   }
-      //   wasInLandscape = nowLandscape;
-      // }
+      window.addEventListener('resize', function () {
+        clearTimeout(window._orientationResizeTimeout);
+        window._orientationResizeTimeout = setTimeout(function () {
+          handleOrientationChange();
+        }, 200);
+      });
 
-      // window.addEventListener('orientationchange', function () {
-      //   setTimeout(handleOrientationChange, 100);
-      // });
+      if (screen.orientation) {
+        screen.orientation.addEventListener('change', function () {
+          setTimeout(function () {
+            handleOrientationChange();
+          }, 100);
+        });
+      }
 
-      // window.addEventListener('resize', function () {
-      //   clearTimeout(window._orientationResizeTimeout);
-      //   window._orientationResizeTimeout = setTimeout(function () {
-      //     handleOrientationChange();
-      //     resizeCanvases();
-      //   }, 200);
-      // });
-
-      // if (screen.orientation) {
-      //   screen.orientation.addEventListener('change', function () {
-      //     setTimeout(function () {
-      //       handleOrientationChange();
-      //       resizeCanvases();
-      //     }, 100);
-      //   });
-      // }
-
-      // // Initial: Canvas an Viewport anpassen + ggf. Tracker pausieren
-      // window.addEventListener('load', function () {
-      //   resizeCanvases();
-      //   if (!isLandscape()) {
-      //     console.log('[Orientation] Started in portrait mode - tracker will start paused');
-      //     setTimeout(function () {
-      //       if (!isLandscape() && window.iTracker) {
-      //         pauseTracker();
-      //       }
-      //     }, 2000);
-      //   }
-      // });
+      // Initial: Canvas an Viewport anpassen
+      window.addEventListener('load', function () {
+        resizeCanvases();
+      });
     </script>
 
     <script src="autostart.js"></script>
