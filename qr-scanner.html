@@ -63,7 +63,7 @@
       position: relative;
     }
 
-    /* Video immer fullscreen, sauber in Portrait & Landscape */
+    /* Video fullscreen in Portrait & Landscape */
     #qr-reader video {
       position: absolute;
       width: 100% !important;
@@ -137,12 +137,12 @@
       50% { opacity: 0.5; }
     }
 
-    /* dezente Status-/Fehlermeldungen, nur wenn nötig */
-    #status,
+    /* Nur Fehler-Badge, kein Status-Text */
     #error-message {
       position: absolute;
       left: 50%;
       transform: translateX(-50%);
+      bottom: 14px;
       padding: 0.4rem 0.8rem;
       border-radius: 999px;
       font-size: 0.8rem;
@@ -150,16 +150,6 @@
       max-width: 90%;
       text-overflow: ellipsis;
       overflow: hidden;
-    }
-
-    #status {
-      bottom: 14px;
-      background: rgba(0, 0, 0, 0.65);
-      color: #e0e0e0;
-    }
-
-    #error-message {
-      bottom: 14px;
       background: rgba(150, 0, 0, 0.9);
       color: #ffdddd;
       display: none;
@@ -210,25 +200,24 @@
         <div style="font-size:0.9rem;">Kamera wird initialisiert…</div>
       </div>
 
-      <div id="status"></div>
       <div id="error-message"></div>
     </div>
   </div>
 
   <script>
-    // Zielseite direkt neben dieser Datei
     const TRACKER_PAGE = "index_tracker.html";
 
     let html5QrCode = null;
     let hasStarted = false;
+    let currentOrientation = null;
+    let restartTimeout = null;
 
     const loadingOverlay = document.getElementById("loading");
-    const statusDiv = document.getElementById("status");
     const errorDiv = document.getElementById("error-message");
     const frame = document.getElementById("scan-frame");
 
-    function setStatus(msg) {
-      statusDiv.textContent = msg || "";
+    function isLandscape() {
+      return window.innerWidth > window.innerHeight;
     }
 
     function showError(msg, err) {
@@ -236,7 +225,6 @@
       loadingOverlay.style.display = "none";
       errorDiv.style.display = "block";
       errorDiv.textContent = msg;
-      setStatus("");
     }
 
     function isValidUrl(string) {
@@ -259,11 +247,10 @@
       if (html5QrCode && hasStarted) {
         try {
           await html5QrCode.stop();
-          hasStarted = false;
-          console.log("Scanner stopped");
         } catch (e) {
           console.warn("Fehler beim Stoppen des Scanners:", e);
         }
+        hasStarted = false;
       }
     }
 
@@ -273,11 +260,8 @@
       console.log("Scan Result:", decodedResult);
 
       frame.classList.remove("scanning");
-      setStatus("QR-Code erkannt. Einen Moment…");
-
       await stopScanner();
 
-      // ---- Auswertung wie in deiner Version ----
       let stationId = null;
       let videoUrl = null;
 
@@ -345,7 +329,6 @@
       console.log("sessionStorage.qr_raw:", sessionStorage.getItem("qr_raw"));
       console.log("=====================================");
 
-      // Redirect mit Fallback-Parametern
       setTimeout(() => {
         const params = new URLSearchParams();
         params.set("qr", "scanned");
@@ -359,7 +342,7 @@
     }
 
     function onScanFailure(error) {
-      // wird ständig aufgerufen, wenn kein Code im Frame ist -> nicht loggen
+      // wird ständig getriggert, wenn kein QR im Bild ist – bewusst ruhig
     }
 
     async function startScanner() {
@@ -368,7 +351,9 @@
           throw new Error("html5-qrcode Bibliothek nicht geladen.");
         }
 
-        setStatus("Kamera wird gestartet…");
+        loadingOverlay.style.display = "flex";
+        errorDiv.style.display = "none";
+        frame.classList.add("scanning");
 
         const devices = await Html5Qrcode.getCameras();
         if (!devices || !devices.length) {
@@ -378,7 +363,6 @@
 
         console.log("Gefundene Kameras:", devices);
 
-        // 1️⃣ Versuche explizit die Back-Kamera zu finden
         let backCamera = devices.find((d) =>
           d.label.toLowerCase().includes("back") ||
           d.label.toLowerCase().includes("rear") ||
@@ -386,12 +370,11 @@
         );
 
         let cameraConfig;
-
         if (backCamera) {
-          console.log("Back-Kamera gefunden:", backCamera.label);
+          console.log("Back-Kamera:", backCamera.label);
           cameraConfig = { deviceId: { exact: backCamera.id } };
         } else {
-          console.warn("Keine Back-Kamera im Label erkannt. Erzwinge facingMode: environment");
+          console.warn("Keine Back-Kamera im Label – nutze facingMode: environment");
           cameraConfig = { facingMode: { exact: "environment" } };
         }
 
@@ -406,7 +389,6 @@
           disableFlip: true
         };
 
-        // Kamera-Permission kommt hier direkt
         await html5QrCode.start(
           cameraConfig,
           config,
@@ -416,9 +398,7 @@
 
         hasStarted = true;
         loadingOverlay.style.display = "none";
-        errorDiv.style.display = "none";
-        setStatus("Richte den QR-Code in den Rahmen.");
-        console.log("Scanner gestartet (Back-Kamera).");
+        console.log("Scanner gestartet (Orientation:", currentOrientation, ")");
       } catch (err) {
         console.error("Scanner init error:", err);
 
@@ -439,8 +419,23 @@
       }
     }
 
+    async function handleOrientationChange() {
+      const newOrientation = isLandscape() ? "landscape" : "portrait";
+      if (newOrientation === currentOrientation) return;
+
+      currentOrientation = newOrientation;
+      console.log("Orientation changed to:", currentOrientation);
+
+      if (restartTimeout) clearTimeout(restartTimeout);
+
+      restartTimeout = setTimeout(async () => {
+        await stopScanner();
+        await startScanner();
+      }, 400);
+    }
+
     window.addEventListener("load", () => {
-      // direkt beim Laden: Kamera anfragen und starten
+      currentOrientation = isLandscape() ? "landscape" : "portrait";
       startScanner();
     });
 
@@ -449,11 +444,13 @@
     });
 
     document.addEventListener("visibilitychange", () => {
-      // bei Tab-Wechsel lieber stoppen, um Stress mit Kamera zu vermeiden
       if (document.hidden) {
         stopScanner();
       }
     });
+
+    window.addEventListener("orientationchange", handleOrientationChange);
+    window.addEventListener("resize", handleOrientationChange);
   </script>
 </body>
 </html>
