@@ -27,7 +27,9 @@
             font-family: 'Roboto', sans-serif;
             letter-spacing: 0.05em;
             font-size: max(2vw, 2vh);
-            color: white;
+            /* NEU: Weißer Hintergrund, schwarze Standardschrift */
+            background: #ffffff;
+            color: #000000;
         }
 
         button {
@@ -77,10 +79,10 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
+            /* NEU: Weißer Hintergrund hinter Canvas/Loader */
+            background: #ffffff;
         }
 
-        /* AR-Video-Canvas darf keine Klicks fangen,
-           beide Canvas deckungsgleich über den Screen */
         #video-canvas,
         #unity-canvas {
             position: absolute !important;
@@ -89,7 +91,6 @@
             width: 100vw !important;
             height: 100vh !important;
             display: block !important;
-            /* Safari Fix: Verhindere Canvas-Rotation und Zoom */
             transform: none !important;
             -webkit-transform: none !important;
             image-orientation: from-image !important;
@@ -102,36 +103,16 @@
 
         #video-canvas {
             pointer-events: none;
-            /* Safari Fix für Video-Canvas */
             -webkit-appearance: none;
             -webkit-user-select: none;
         }
 
         #unity-canvas {
             z-index: 100;
+            /* Unity-Canvas selbst bleibt transparent, damit Kamera später durchscheint,
+               der weiße Hintergrund kommt vom body / unity-container */
+            background: transparent !important;
         }
-        
-        /* Landscape-spezifisch - AUSKOMMENTIERT */
-        /* @media screen and (orientation: landscape) {
-            #video-canvas,
-            #unity-canvas {
-                width: 100vw !important;
-                height: 100vh !important;
-                zoom: 1 !important;
-                scale: 1 !important;
-            }
-        } */
-        
-        /* Portrait-spezifisch - AUSKOMMENTIERT */
-        /* @media screen and (orientation: portrait) {
-            #video-canvas,
-            #unity-canvas {
-                width: 100vw !important;
-                height: 100vh !important;
-                zoom: 1 !important;
-                scale: 1 !important;
-            }
-        } */
 
         /* HTML Back-Button als Fallback für Unity UI */
         #html-back-button {
@@ -168,7 +149,75 @@
             transform: scale(0.95);
         }
 
-        </style>
+        /* ==== NEUES UNITY-LOADING-UI: SCHWARZ AUF WEISS ==== */
+
+        /* Wrapper für Logo + Progressbar */
+        #unity-loading-bar {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none; /* JS setzt auf "block" */
+            z-index: 500;
+            text-align: center;
+            background: transparent;
+        }
+
+        /* „Unity“-Logo als schwarzer Schriftzug / Platzhalter
+           (falls du ein echtes Logo-Bild willst, kannst du hier background-image setzen) */
+        #unity-logo {
+            width: 160px;
+            height: 60px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            font-weight: 700;
+            font-size: 28px;
+            color: #000000;
+        }
+        #unity-logo::before {
+            content: "Unity";
+        }
+
+        /* Äußerer Balken (Rahmen) */
+        #unity-progress-bar-empty {
+            width: 220px;
+            height: 14px;
+            margin: 0 auto;
+            border-radius: 7px;
+            border: 2px solid #000000;
+            background: transparent;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* Innerer, gefüllter Balken – wird per JS in der Breite gesetzt */
+        #unity-progress-bar-full {
+            height: 100%;
+            width: 0%;
+            background: #000000;
+            border-radius: 5px;
+            transition: width 0.1s linear;
+        }
+
+        /* Warnbanner (Fehler/Warnings) – Text schwarz auf weißem Hintergrund */
+        #unity-warning {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            max-width: 90vw;
+            background: #ffffff;
+            color: #000000;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 600;
+            display: none;
+        }
+    </style>
 </head>
 <body>
     <!--IMAGETARGETS-->
@@ -262,7 +311,7 @@
 
     <div id="unity-container" class="unity-mobile">
         <canvas id="unity-canvas" width="720" height="1280" tabindex="-1"
-                style="background:#0000;"></canvas>
+                style="background:transparent;"></canvas>
         <div id="unity-loading-bar">
             <div id="unity-logo"></div>
             <div id="unity-progress-bar-empty">
@@ -337,11 +386,9 @@
         ['unity-canvas', 'video-canvas'].forEach(id => {
           const c = document.getElementById(id);
           if (!c) return;
-          
-          // Vollständiger Reset aller Styles - WICHTIG für Safari
+
           c.style.cssText = '';
-          
-          // Explizite Styles setzen
+
           c.style.position = 'absolute';
           c.style.top = '0px';
           c.style.left = '0px';
@@ -354,27 +401,23 @@
           c.style.margin = '0';
           c.style.padding = '0';
           c.style.border = 'none';
-          
-          // interne Canvas-Auflösung (WICHTIG für Rendering)
+
           c.width  = w;
           c.height = h;
-          
+
           console.log('[Canvas] ' + id + ' set to:', c.width, 'x', c.height, 'CSS:', w + 'px x ' + h + 'px');
         });
-        
-        // Benachrichtige Unity über Canvas-Größenänderung
+
         notifyUnityCanvasResize(w, h);
       }
-      
-      // Benachrichtige Unity über Canvas-Größenänderung
+
       function notifyUnityCanvasResize(w, h) {
         if (!window.unityInstance) {
           console.log('[Canvas] Unity instance not ready yet');
           return;
         }
-        
+
         try {
-          // Sende Nachricht an Unity, dass Canvas neu dimensioniert wurde
           window.unityInstance.SendMessage('ARCamera', 'OnCanvasResize', w + ',' + h);
           console.log('[Canvas] Notified Unity of resize:', w, 'x', h);
         } catch (e) {
@@ -382,7 +425,6 @@
         }
       }
 
-      // Unity Banner (Warnungen / Fehler)
       function unityShowBanner(msg, type) {
         function updateBannerVisibility() {
           warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
@@ -390,9 +432,9 @@
         var div = document.createElement('div');
         div.innerHTML = msg;
         warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        if (type == 'error') div.style = 'background: #ffdddd; color:#000; padding: 10px;';
         else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          if (type == 'warning') div.style = 'background: #fff6cc; color:#000; padding: 10px;';
           setTimeout(function() {
             warningBanner.removeChild(div);
             updateBannerVisibility();
@@ -422,7 +464,6 @@
           showBanner:          unityShowBanner
         };
 
-        // Mobile: Viewport anpassen (wie im neuen Build)
         if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
           var meta = document.createElement('meta');
           meta.name = 'viewport';
@@ -432,12 +473,11 @@
 
         loadingBar.style.display = "block";
 
-        // Loader dynamisch nachladen
         var script = document.createElement("script");
         script.src = loaderUrl;
         script.onload = () => {
           createUnityInstance(canvas, config, (progress) => {
-            progressBarFull.style.width = 100 * progress + "%";
+            progressBarFull.style.width = (100 * progress) + "%";
           }).then((unityInstance) => {
             loadingBar.style.display = "none";
 
@@ -446,7 +486,6 @@
               RequestWebcam();
             }
 
-            // HTML Back-Button aktivieren
             var htmlBackBtn = document.getElementById("html-back-button");
             if (htmlBackBtn) {
               htmlBackBtn.style.display = "flex";
@@ -459,16 +498,12 @@
         document.body.appendChild(script);
       }
 
-      // Facing Mode ('environment' | 'user')
       window.unityFacingMode = "environment";
       window.WEBCAM_SETTINGS = {
         video: {
           facingMode: unityFacingMode,
-          // WICHTIG: Breite und Höhe getauscht um Zoom-Problem zu beheben
-          // Siehe: https://discord.com/channels/... (Imagine Forum)
-          // Auf manchen Android-Geräten wird die falsche Kamera/Zoom gewählt
-          width: { ideal: 1280 },   // Landscape-Breite
-          height: { ideal: 960 },   // Landscape-Höhe
+          width: { ideal: 1280 },
+          height: { ideal: 960 },
         },
         audio: false
       };
@@ -480,7 +515,6 @@
           window.webcamStream = await navigator.mediaDevices.getUserMedia(window.WEBCAM_SETTINGS);
           console.log("Webcam access granted");
           requestingForPermissions = false;
-          // Immediately stop the stream to release the camera
           StopWebcam();
         } catch (err) {
           console.error("getUserMedia error - ", err);
@@ -511,7 +545,6 @@
             console.log("Webcam started successfully");
             window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamSuccess');
 
-            // Hintergrund des Unity-Canvas transparent machen
             const uCanvas = document.querySelector("#unity-canvas");
             let bgColor = window.getComputedStyle(uCanvas).backgroundColor;
             uCanvas.style.background =
@@ -534,12 +567,12 @@
           if (mediaDevice.kind === 'videoinput') {
             if (window.unityFacingMode == 'environment' &&
                 !mediaDevice.label.includes('facing front')) {
-              camDevices.push(mediaDevice); // back cam only
+              camDevices.push(mediaDevice);
             } else if (window.unityFacingMode == 'user' &&
                        mediaDevice.label.includes('facing front')) {
-              camDevices.push(mediaDevice); // front cam only
+              camDevices.push(mediaDevice);
             } else {
-              camDevices.push(mediaDevice); // both
+              camDevices.push(mediaDevice);
             }
           }
         });
@@ -650,7 +683,6 @@
         }, 500);
       }
 
-      // Back to Scanner (Unity ruft BackToScanner auf)
       function BackToScanner() {
         console.log("BackToScanner called from Unity");
 
@@ -697,8 +729,6 @@
         INTERNAL_SMOOTHFACTOR_POS: .075,
       };
 
-      // --- Orientation Handling: Wrong-Orientation Bild mit Verzögerung anzeigen ---
-
       function isLandscape() {
         return window.innerWidth > window.innerHeight;
       }
@@ -708,18 +738,15 @@
 
       function showWrongOrientationWithDelay() {
         const wrongOrientationDiv = document.getElementById('wrong-orientation');
-        
-        // Lösche zuerst jeden existierenden Timeout
+
         if (wrongOrientationTimeout) {
           clearTimeout(wrongOrientationTimeout);
           wrongOrientationTimeout = null;
         }
-        
-        // Zeige das Bild sofort
+
         wrongOrientationDiv.style.display = 'flex';
         console.log('[Orientation] Showing wrong-orientation overlay for 800ms');
-        
-        // Verstecke es nach 800ms
+
         wrongOrientationTimeout = setTimeout(() => {
           console.log('[Orientation] Hiding wrong-orientation overlay after 800ms');
           wrongOrientationDiv.style.display = 'none';
@@ -729,24 +756,24 @@
 
       function handleOrientationChange() {
         const nowLandscape = isLandscape();
-        
+
         if (wasInLandscape && !nowLandscape) {
-          // Wechsel zu Portrait: Wrong-Orientation Bild anzeigen
           console.log('[Orientation] Changed to PORTRAIT');
-          
-          // Lösche zuerst jeden existierenden Timeout
+
           if (wrongOrientationTimeout) {
             clearTimeout(wrongOrientationTimeout);
             wrongOrientationTimeout = null;
           }
-          
-          document.getElementById('wrong-orientation').style.display = 'flex';
+
+          const el = document.getElementById('wrong-orientation');
+          if (el) el.style.display = 'flex';
         } else if (!wasInLandscape && nowLandscape) {
-          // Wechsel zu Landscape: Wrong-Orientation Bild mit Verzögerung verstecken
           console.log('[Orientation] Changed to LANDSCAPE');
-          showWrongOrientationWithDelay();
+          if (document.getElementById('wrong-orientation')) {
+            showWrongOrientationWithDelay();
+          }
         }
-        
+
         wasInLandscape = nowLandscape;
       }
 
@@ -769,11 +796,10 @@
         });
       }
 
-      // Initial: Canvas an Viewport anpassen
       window.addEventListener('load', function () {
-        // Verstecke Wrong-Orientation Bild sofort (unterstützen jetzt alle Orientierungen)
-        document.getElementById('wrong-orientation').style.display = 'none';
-        
+        const wrong = document.getElementById('wrong-orientation');
+        if (wrong) wrong.style.display = 'none';
+
         resizeCanvases();
       });
     </script>
