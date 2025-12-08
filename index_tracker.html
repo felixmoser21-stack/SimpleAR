@@ -385,6 +385,25 @@
           
           console.log('[Canvas] ' + id + ' set to:', c.width, 'x', c.height, 'CSS:', w + 'px x ' + h + 'px');
         });
+        
+        // Benachrichtige Unity über Canvas-Größenänderung
+        notifyUnityCanvasResize(w, h);
+      }
+      
+      // Benachrichtige Unity über Canvas-Größenänderung
+      function notifyUnityCanvasResize(w, h) {
+        if (!window.unityInstance) {
+          console.log('[Canvas] Unity instance not ready yet');
+          return;
+        }
+        
+        try {
+          // Sende Nachricht an Unity, dass Canvas neu dimensioniert wurde
+          window.unityInstance.SendMessage('ARCamera', 'OnCanvasResize', w + ',' + h);
+          console.log('[Canvas] Notified Unity of resize:', w, 'x', h);
+        } catch (e) {
+          console.warn('[Canvas] Could not notify Unity:', e);
+        }
       }
 
       // Unity Banner (Warnungen / Fehler)
@@ -469,6 +488,11 @@
       window.WEBCAM_SETTINGS = {
         video: {
           facingMode: unityFacingMode,
+          // WICHTIG: Breite und Höhe getauscht um Zoom-Problem zu beheben
+          // Siehe: https://discord.com/channels/... (Imagine Forum)
+          // Auf manchen Android-Geräten wird die falsche Kamera/Zoom gewählt
+          width: { ideal: 1280 },   // Landscape-Breite
+          height: { ideal: 960 },   // Landscape-Höhe
         },
         audio: false
       };
