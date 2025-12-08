@@ -83,16 +83,21 @@
            beide Canvas deckungsgleich über den Screen */
         #video-canvas,
         #unity-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            display: block;
-            /* Safari Fix: Verhindere Canvas-Rotation */
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            display: block !important;
+            /* Safari Fix: Verhindere Canvas-Rotation und Zoom */
             transform: none !important;
             -webkit-transform: none !important;
             image-orientation: from-image !important;
+            zoom: 1 !important;
+            scale: 1 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
         }
 
         #video-canvas {
@@ -104,6 +109,28 @@
 
         #unity-canvas {
             z-index: 100;
+        }
+        
+        /* Landscape-spezifisch */
+        @media screen and (orientation: landscape) {
+            #video-canvas,
+            #unity-canvas {
+                width: 100vw !important;
+                height: 100vh !important;
+                zoom: 1 !important;
+                scale: 1 !important;
+            }
+        }
+        
+        /* Portrait-spezifisch */
+        @media screen and (orientation: portrait) {
+            #video-canvas,
+            #unity-canvas {
+                width: 100vw !important;
+                height: 100vh !important;
+                zoom: 1 !important;
+                scale: 1 !important;
+            }
         }
 
         /* HTML Back-Button als Fallback für Unity UI */
@@ -329,28 +356,35 @@
         const w = window.innerWidth;
         const h = window.innerHeight;
 
+        console.log('[Canvas] Resizing to:', w, 'x', h);
+
         ['unity-canvas', 'video-canvas'].forEach(id => {
           const c = document.getElementById(id);
           if (!c) return;
           
-          // Vollständiger Reset aller Styles
+          // Vollständiger Reset aller Styles - WICHTIG für Safari
           c.style.cssText = '';
+          
+          // Explizite Styles setzen
           c.style.position = 'absolute';
-          c.style.top = '0';
-          c.style.left = '0';
-          c.style.width = '100vw';
-          c.style.height = '100vh';
+          c.style.top = '0px';
+          c.style.left = '0px';
+          c.style.width = w + 'px';
+          c.style.height = h + 'px';
           c.style.display = 'block';
           c.style.zoom = '1';
           c.style.scale = '1';
           c.style.transform = 'none';
+          c.style.margin = '0';
+          c.style.padding = '0';
+          c.style.border = 'none';
           
-          // interne Auflösung
+          // interne Canvas-Auflösung (WICHTIG für Rendering)
           c.width  = w;
           c.height = h;
+          
+          console.log('[Canvas] ' + id + ' set to:', c.width, 'x', c.height, 'CSS:', w + 'px x ' + h + 'px');
         });
-        
-        console.log('Canvas resized to:', w, 'x', h);
       }
 
       // Unity Banner (Warnungen / Fehler)
