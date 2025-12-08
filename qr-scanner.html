@@ -51,8 +51,10 @@
             width: 100% !important;
             height: 100% !important;
             object-fit: cover !important;
-            /* Fix für Android Landscape-Orientierung */
+            /* Fix für Safari Landscape-Orientierung */
             transform: none !important;
+            -webkit-transform: none !important;
+            image-orientation: from-image !important;
         }
 
         /* Landscape-spezifische Fixes */
@@ -61,6 +63,9 @@
                 width: 100vw !important;
                 height: 100vh !important;
                 object-fit: cover !important;
+                /* Safari Fix: Stelle sicher dass Video nicht rotiert wird */
+                transform: none !important;
+                -webkit-transform: none !important;
             }
             
             #qr-reader {
@@ -78,10 +83,13 @@
         /* Fix für html5-qrcode interne Container */
         #qr-reader__scan_region {
             min-height: 100% !important;
+            overflow: hidden !important;
         }
         
         #qr-reader__scan_region video {
             object-fit: cover !important;
+            transform: none !important;
+            -webkit-transform: none !important;
         }
 
         #qr-reader__dashboard_section {

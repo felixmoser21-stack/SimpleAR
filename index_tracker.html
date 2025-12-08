@@ -89,10 +89,17 @@
             width: 100vw;
             height: 100vh;
             display: block;
+            /* Safari Fix: Verhindere Canvas-Rotation */
+            transform: none !important;
+            -webkit-transform: none !important;
+            image-orientation: from-image !important;
         }
 
         #video-canvas {
             pointer-events: none;
+            /* Safari Fix für Video-Canvas */
+            -webkit-appearance: none;
+            -webkit-user-select: none;
         }
 
         #unity-canvas {
