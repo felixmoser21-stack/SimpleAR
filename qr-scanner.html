@@ -274,16 +274,12 @@
                 return {
                     facingMode: { ideal: "environment" },
                     width: { ideal: 1920, min: 1280 },
-                    height: { ideal: 1080, min: 720 },
-                    aspectRatio: { ideal: 16/9 }
+                    height: { ideal: 1080, min: 720 }
                 };
             } else {
-                // Im Portrait: Höhe > Breite anfordern
+                // Im Portrait: Höhe > Breite anfordern - KEINE festen Constraints
                 return {
-                    facingMode: { ideal: "environment" },
-                    width: { ideal: 1080, min: 720 },
-                    height: { ideal: 1920, min: 1280 },
-                    aspectRatio: { ideal: 9/16 }
+                    facingMode: { ideal: "environment" }
                 };
             }
         }
