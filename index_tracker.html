@@ -69,18 +69,33 @@
             100% { transform: translateX(-50%) rotate(360deg); }
         }
 
-        /* AR-Video-Canvas darf keine Klicks fangen */
-        #video-canvas {
-            pointer-events: none;
+        /* Container und Canvas IMMER viewportfüllend */
+        #unity-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        /* Unity-Canvas nach vorne holen */
+        /* AR-Video-Canvas darf keine Klicks fangen,
+           beide Canvas deckungsgleich über den Screen */
+        #video-canvas,
         #unity-canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
+            display: block;
+        }
+
+        #video-canvas {
+            pointer-events: none;
+        }
+
+        #unity-canvas {
             z-index: 100;
         }
 
@@ -147,14 +162,13 @@
     </div>
 
     <!--IMAGETARGETS-->
-
     <imagetarget id="flower"      src="targets/flower.png"></imagetarget>
     <imagetarget id="Zoo_Tracker" src="targets/Zoo_Tracker.png"></imagetarget>
 
     <video id="webcam-video" muted autoplay playsinline
            style="width:1px;position:absolute"></video>
     <canvas id="video-canvas"
-            style="width:100%; height:100%; object-fit:cover; position:absolute"></canvas>
+            style="width:100%; height:100%; object-fit:cover;"></canvas>
 
     <div id="startARDiv" class="ctaDiv" style="background:#2f2e32">
         <select id="chooseCamSel"
@@ -268,8 +282,8 @@
       var initialize = async () => {
         var unityCanvas = document.querySelector("#unity-canvas");
         var videoCanvas = document.querySelector("#video-canvas");
-        window.arCamera = new ARCamera(unityCanvas, videoCanvas);
-        window.iTracker = new ImageTracker(arCamera);
+        window.arCamera  = new ARCamera(unityCanvas, videoCanvas);
+        window.iTracker  = new ImageTracker(arCamera);
 
         try {
           await window.iTracker.initialize("./opencv.js");
@@ -284,7 +298,7 @@
 
         // Button anzeigen, Spinner verstecken – wie im frischen Build
         document.getElementById("startARButton").style.visibility = "visible";
-        document.getElementById("spinner").style.visibility = "hidden";
+        document.getElementById("spinner").style.visibility     = "hidden";
 
         window.permissionsGranted = IsCameraPermissionGranted();
       };
@@ -297,11 +311,28 @@
         }
       });
 
-      var container      = document.querySelector("#unity-container");
-      var canvas         = document.querySelector("#unity-canvas");
-      var loadingBar     = document.querySelector("#unity-loading-bar");
-      var progressBarFull= document.querySelector("#unity-progress-bar-full");
-      var warningBanner  = document.querySelector("#unity-warning");
+      var container       = document.querySelector("#unity-container");
+      var canvas          = document.querySelector("#unity-canvas");
+      var loadingBar      = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var warningBanner   = document.querySelector("#unity-warning");
+
+      // Canvas-Größen an Viewport anpassen (Unity + Video)
+      function resizeCanvases() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+
+        ['unity-canvas', 'video-canvas'].forEach(id => {
+          const c = document.getElementById(id);
+          if (!c) return;
+          // CSS-Größe
+          c.style.width  = w + 'px';
+          c.style.height = h + 'px';
+          // interne Auflösung
+          c.width  = w;
+          c.height = h;
+        });
+      }
 
       // Unity Banner (Warnungen / Fehler)
       function unityShowBanner(msg, type) {
@@ -333,14 +364,14 @@
         var loaderUrl = buildUrl + "/ZOO.loader.js";
 
         var config = {
-          dataUrl:        buildUrl + "/ZOO.data.unityweb",
-          frameworkUrl:   buildUrl + "/ZOO.framework.js.unityweb",
-          codeUrl:        buildUrl + "/ZOO.wasm.unityweb",
-          streamingAssetsUrl: "StreamingAssets",
-          companyName:    "Storiis",
-          productName:    "Storiis",
-          productVersion: "2.0.0",
-          showBanner:     unityShowBanner
+          dataUrl:             buildUrl + "/ZOO.data.unityweb",
+          frameworkUrl:        buildUrl + "/ZOO.framework.js.unityweb",
+          codeUrl:             buildUrl + "/ZOO.wasm.unityweb",
+          streamingAssetsUrl:  "StreamingAssets",
+          companyName:         "Storiis",
+          productName:         "Storiis",
+          productVersion:      "2.0.0",
+          showBanner:          unityShowBanner
         };
 
         // Mobile: Viewport anpassen (wie im neuen Build)
@@ -619,8 +650,8 @@
         return window.innerWidth > window.innerHeight;
       }
 
-      let wasInLandscape  = isLandscape();
-      let trackerWasPaused= false;
+      let wasInLandscape   = isLandscape();
+      let trackerWasPaused = false;
 
       function pauseTracker() {
         console.log('[Orientation] Pausing iTracker for portrait mode...');
@@ -646,10 +677,9 @@
             console.warn('[Orientation] Could not resume iTracker:', e);
           }
         }
-        if (canvas) {
-          canvas.style.width  = window.innerWidth  + "px";
-          canvas.style.height = window.innerHeight + "px";
-        }
+
+        // Nach Orientierungswechsel beide Canvas anpassen
+        resizeCanvases();
       }
 
       function handleOrientationChange() {
@@ -670,16 +700,24 @@
 
       window.addEventListener('resize', function () {
         clearTimeout(window._orientationResizeTimeout);
-        window._orientationResizeTimeout = setTimeout(handleOrientationChange, 200);
+        window._orientationResizeTimeout = setTimeout(function () {
+          handleOrientationChange();
+          resizeCanvases();
+        }, 200);
       });
 
       if (screen.orientation) {
         screen.orientation.addEventListener('change', function () {
-          setTimeout(handleOrientationChange, 100);
+          setTimeout(function () {
+            handleOrientationChange();
+            resizeCanvases();
+          }, 100);
         });
       }
 
+      // Initial: Canvas an Viewport anpassen + ggf. Tracker pausieren
       window.addEventListener('load', function () {
+        resizeCanvases();
         if (!isLandscape()) {
           console.log('[Orientation] Started in portrait mode - tracker will start paused');
           setTimeout(function () {
