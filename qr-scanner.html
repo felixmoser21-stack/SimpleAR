@@ -75,14 +75,19 @@
       -webkit-transform: none !important;
     }
 
-    /* Scan-Rahmen */
+    /* falls html5-qrcode doch irgendwelche Overlays einfügt → verstecken */
+    #qr-reader__scan_region > div {
+      display: none !important;
+    }
+
+    /* eigenes Scan-Kästchen */
     #scan-frame {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: min(60vw, 60vh);
-      height: min(60vw, 60vh);
+      width: min(70vw, 70vh);
+      height: min(70vw, 70vh);
       border-radius: 12px;
       box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
       border: 2px solid #00ff88;
@@ -137,7 +142,6 @@
       50% { opacity: 0.5; }
     }
 
-    /* Nur Fehler-Badge, kein Status-Text */
     #error-message {
       position: absolute;
       left: 50%;
@@ -316,7 +320,6 @@
         if (!stationId.length) stationId = null;
       }
 
-      // sessionStorage für Unity
       sessionStorage.setItem("qr_raw", decodedText);
       if (stationId) sessionStorage.setItem("stationId", stationId);
       else sessionStorage.removeItem("stationId");
@@ -342,7 +345,7 @@
     }
 
     function onScanFailure(error) {
-      // wird ständig getriggert, wenn kein QR im Bild ist – bewusst ruhig
+      // kein Logging, passiert dauerhaft wenn kein Code im Bild ist
     }
 
     async function startScanner() {
@@ -380,12 +383,9 @@
 
         html5QrCode = new Html5Qrcode("qr-reader");
 
+        // WICHTIG: kein qrbox → html5-qrcode scannt den ganzen Frame, kein eigenes Overlay
         const config = {
           fps: 10,
-          qrbox: function (vw, vh) {
-            const size = Math.floor(Math.min(vw, vh) * 0.6);
-            return { width: size, height: size };
-          },
           disableFlip: true
         };
 
