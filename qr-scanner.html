@@ -226,41 +226,9 @@
         .scanning .corner {
             animation: pulse 1.5s ease-in-out infinite;
         }
-
-        /* Wrong Orientation Overlay - zeigt an wenn nicht im Landscape */
-        #wrong-orientation {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
-
-        #wrong-orientation img {
-            width: 100vw;
-            height: 100vh;
-            object-fit: cover;
-        }
-
-        /* Verstecke Overlay im Landscape-Modus - AUSKOMMENTIERT */
-        /* @media screen and (orientation: landscape) {
-            #wrong-orientation {
-                display: none !important;
-            }
-        } */
     </style>
 </head>
 <body>
-    <!-- Wrong Orientation Overlay - wird im Portrait angezeigt -->
-    <div id="wrong-orientation">
-        <img src="WRONG_ORIENTATION.png" alt="Bitte Handy drehen">
-    </div>
-
     <div id="loading">
         <div class="spinner"></div>
         <div>Kamera wird initialisiert...</div>
@@ -699,15 +667,6 @@
         // Start scanner when page loads
         window.addEventListener('load', () => {
             currentOrientation = isLandscape() ? 'landscape' : 'portrait';
-            
-            // AUSKOMMENTIERT: Landscape-Erzwingung - teste jetzt auch Portrait
-            // if (isLandscape()) {
-            //     console.log('Starting in landscape mode - initializing scanner');
-            //     setTimeout(initScanner, 100);
-            // } else {
-            //     console.log('Starting in portrait mode - waiting for landscape');
-            //     document.getElementById('loading').style.display = 'none';
-            // }
             
             // Starte Scanner in JEDER Orientierung
             console.log('Starting scanner in', currentOrientation, 'mode');

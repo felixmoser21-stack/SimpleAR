@@ -168,39 +168,9 @@
             transform: scale(0.95);
         }
 
-        /* Wrong Orientation Overlay */
-        #wrong-orientation {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 99999;
-        }
-
-        #wrong-orientation img {
-            width: 100vw;
-            height: 100vh;
-            object-fit: cover;
-        }
-
-        /* @media screen and (orientation: landscape) {
-            #wrong-orientation {
-                display: none !important;
-            }
-        } */
-    </style>
+        </style>
 </head>
 <body>
-    <!-- Wrong Orientation Overlay -->
-    <div id="wrong-orientation">
-        <img src="WRONG_ORIENTATION.png" alt="Bitte Handy drehen">
-    </div>
-
     <!--IMAGETARGETS-->
     <imagetarget id="flower"      src="targets/flower.png"></imagetarget>
     <imagetarget id="Zoo_Tracker" src="targets/Zoo_Tracker.png"></imagetarget>
@@ -801,6 +771,9 @@
 
       // Initial: Canvas an Viewport anpassen
       window.addEventListener('load', function () {
+        // Verstecke Wrong-Orientation Bild sofort (unterstützen jetzt alle Orientierungen)
+        document.getElementById('wrong-orientation').style.display = 'none';
+        
         resizeCanvases();
       });
     </script>

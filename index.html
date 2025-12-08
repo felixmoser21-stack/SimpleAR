@@ -45,26 +45,6 @@
             left: 0;
         }
 
-        /* Wrong Orientation Overlay */
-        #wrong-orientation {
-            position: fixed;
-            top: -60px;
-            left: 0;
-            width: 100vw;
-            height: calc(100vh + 60px);
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        #wrong-orientation img {
-            width: 100vw;
-            height: calc(100vh + 60px);
-            object-fit: cover;
-        }
-
         /* Video is clickable */
         #video-container {
             cursor: pointer;
@@ -76,11 +56,6 @@
     </style>
 </head>
 <body>
-    <!-- Wrong Orientation Overlay -->
-    <div id="wrong-orientation">
-        <img src="WRONG_ORIENTATION.png" alt="Bitte Handy drehen">
-    </div>
-
     <!-- Video Container -->
     <div id="video-container">
         <video id="home-video" autoplay muted loop playsinline preload="auto">
@@ -90,7 +65,6 @@
 
     <script>
         // Elements
-        const wrongOrientationOverlay = document.getElementById('wrong-orientation');
         const videoContainer = document.getElementById('video-container');
         const homeVideo = document.getElementById('home-video');
 
@@ -113,25 +87,8 @@
             }
         }
 
-        // Handle orientation change
+        // Handle orientation change - Zeige Video in JEDER Orientierung
         function handleOrientation() {
-            // AUSKOMMENTIERT: Landscape-Erzwingung - teste jetzt auch Portrait
-            // if (isLandscape()) {
-            //     // Landscape mode - show video
-            //     wrongOrientationOverlay.style.display = 'none';
-            //     videoContainer.style.display = 'block';
-            //     homeVideo.play().catch(err => {
-            //         console.log('Video autoplay prevented:', err);
-            //     });
-            //     requestFullscreen();
-            // } else {
-            //     // Portrait mode - show wrong orientation overlay
-            //     wrongOrientationOverlay.style.display = 'flex';
-            //     videoContainer.style.display = 'none';
-            // }
-            
-            // Zeige Video in JEDER Orientierung
-            wrongOrientationOverlay.style.display = 'none';
             videoContainer.style.display = 'block';
             
             // Start video if not already playing
