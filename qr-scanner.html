@@ -1,456 +1,577 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
-  />
-  <title>Scan QR-Code</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>QR-Code Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  <!-- html5-qrcode Library -->
-  <script
-    src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"
-    type="text/javascript"
-  ></script>
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
 
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+        #scanner-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
 
-    html,
-    body {
-      width: 100%;
-      height: 100%;
-      background: #000;
-      color: #fff;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      overflow: hidden;
-    }
+        /* html5-qrcode reader container */
+        #qr-reader {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
 
-    #app {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      background: #000;
-    }
+        /* Wichtig: nur Größe + object-fit, keine eigenen transforms! */
+        #qr-reader video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+        }
 
-    #header {
-      flex: 0 0 56px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-bottom: 1px solid #222;
-      background: #050505;
-      font-size: 1.1rem;
-      font-weight: 500;
-    }
+        #qr-reader__scan_region {
+            min-height: 100% !important;
+            overflow: hidden !important;
+        }
+        
+        #qr-reader__scan_region video {
+            object-fit: cover !important;
+        }
 
-    #scanner-wrapper {
-      flex: 1 1 auto;
-      position: relative;
-      overflow: hidden;
-      background: #000;
-    }
+        #qr-reader__dashboard_section,
+        #qr-reader__camera_selection {
+            display: none !important;
+        }
 
-    #qr-reader {
-      width: 100%;
-      height: 100%;
-      position: relative;
-    }
+        #scanner-info {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 16px;
+            text-align: center;
+            z-index: 1000;
+            max-width: 90%;
+        }
 
-    /* Video fullscreen in Portrait & Landscape */
-    #qr-reader video {
-      position: absolute;
-      width: 100% !important;
-      height: 100% !important;
-      top: 0;
-      left: 0;
-      object-fit: cover !important;
-      transform: none !important;
-      -webkit-transform: none !important;
-    }
+        #error-message {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 0, 0, 0.9);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 14px;
+            text-align: center;
+            z-index: 1000;
+            display: none;
+            max-width: 90%;
+        }
 
-    /* falls html5-qrcode doch irgendwelche Overlays einfügt → verstecken */
-    #qr-reader__scan_region > div {
-      display: none !important;
-    }
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            z-index: 1001;
+            text-align: center;
+        }
 
-    /* eigenes Scan-Kästchen */
-    #scan-frame {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: min(70vw, 70vh);
-      height: min(70vw, 70vh);
-      border-radius: 12px;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
-      border: 2px solid #00ff88;
-      pointer-events: none;
-    }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
 
-    .corner {
-      position: absolute;
-      width: 18px;
-      height: 18px;
-      border: 3px solid #00ff88;
-    }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
-    .corner.tl {
-      top: -3px;
-      left: -3px;
-      border-right: none;
-      border-bottom: none;
-      border-radius: 10px 0 0 0;
-    }
+        /* Custom scanning frame overlay */
+        #scanner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 999;
+        }
 
-    .corner.tr {
-      top: -3px;
-      right: -3px;
-      border-left: none;
-      border-bottom: none;
-      border-radius: 0 10px 0 0;
-    }
+        #scanner-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 3px solid #00ff00;
+            border-radius: 10px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+        }
 
-    .corner.bl {
-      bottom: -3px;
-      left: -3px;
-      border-right: none;
-      border-top: none;
-      border-radius: 0 0 0 10px;
-    }
+        .corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #00ff00;
+        }
 
-    .corner.br {
-      bottom: -3px;
-      right: -3px;
-      border-left: none;
-      border-top: none;
-      border-radius: 0 0 10px 0;
-    }
+        .corner.top-left {
+            top: -3px;
+            left: -3px;
+            border-right: none;
+            border-bottom: none;
+            border-radius: 10px 0 0 0;
+        }
 
-    .scanning .corner {
-      animation: pulse 1.6s ease-in-out infinite;
-    }
+        .corner.top-right {
+            top: -3px;
+            right: -3px;
+            border-left: none;
+            border-bottom: none;
+            border-radius: 0 10px 0 0;
+        }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
+        .corner.bottom-left {
+            bottom: -3px;
+            left: -3px;
+            border-right: none;
+            border-top: none;
+            border-radius: 0 0 0 10px;
+        }
 
-    #error-message {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: 14px;
-      padding: 0.4rem 0.8rem;
-      border-radius: 999px;
-      font-size: 0.8rem;
-      white-space: nowrap;
-      max-width: 90%;
-      text-overflow: ellipsis;
-      overflow: hidden;
-      background: rgba(150, 0, 0, 0.9);
-      color: #ffdddd;
-      display: none;
-    }
+        .corner.bottom-right {
+            bottom: -3px;
+            right: -3px;
+            border-left: none;
+            border-top: none;
+            border-radius: 0 0 10px 0;
+        }
 
-    #loading {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 0.8rem;
-      background: #000;
-      z-index: 5;
-    }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
 
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border-radius: 999px;
-      border: 4px solid rgba(255, 255, 255, 0.3);
-      border-top-color: #ffffff;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
+        .scanning .corner {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+    </style>
 </head>
 <body>
-  <div id="app">
-    <div id="header">Scan QR-Code</div>
-
-    <div id="scanner-wrapper">
-      <div id="qr-reader"></div>
-
-      <div id="scan-frame" class="scanning">
-        <div class="corner tl"></div>
-        <div class="corner tr"></div>
-        <div class="corner bl"></div>
-        <div class="corner br"></div>
-      </div>
-
-      <div id="loading">
+    <div id="loading">
         <div class="spinner"></div>
-        <div style="font-size:0.9rem;">Kamera wird initialisiert…</div>
-      </div>
-
-      <div id="error-message"></div>
+        <div>Kamera wird initialisiert...</div>
     </div>
-  </div>
 
-  <script>
-    const TRACKER_PAGE = "index_tracker.html";
+    <div id="scanner-container" style="display: none;">
+        <div id="qr-reader"></div>
+        <div id="scanner-overlay">
+            <div id="scanner-frame" class="scanning">
+                <div class="corner top-left"></div>
+                <div class="corner top-right"></div>
+                <div class="corner bottom-left"></div>
+                <div class="corner bottom-right"></div>
+            </div>
+        </div>
+        <div id="scanner-info">
+            Richten Sie den QR-Code auf den Rahmen
+        </div>
+    </div>
 
-    let html5QrCode = null;
-    let hasStarted = false;
-    let currentOrientation = null;
-    let restartTimeout = null;
+    <div id="error-message"></div>
 
-    const loadingOverlay = document.getElementById("loading");
-    const errorDiv = document.getElementById("error-message");
-    const frame = document.getElementById("scan-frame");
+    <!-- html5-qrcode Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
-    function isLandscape() {
-      return window.innerWidth > window.innerHeight;
-    }
+    <script>
+        let html5QrCode = null;
+        let isRestarting = false;
+        let orientationChangeTimeout = null;
 
-    function showError(msg, err) {
-      console.error(msg, err || "");
-      loadingOverlay.style.display = "none";
-      errorDiv.style.display = "block";
-      errorDiv.textContent = msg;
-    }
-
-    function isValidUrl(string) {
-      try {
-        const url = new URL(string);
-        return url.protocol === "http:" || url.protocol === "https:";
-      } catch (_) {
-        return false;
-      }
-    }
-
-    function isValidVideoUrl(string) {
-      if (!isValidUrl(string)) return false;
-      const videoExtensions = [".mp4", ".webm", ".ogg", ".mov", ".avi", ".mkv"];
-      const lowerUrl = string.toLowerCase();
-      return videoExtensions.some((ext) => lowerUrl.includes(ext));
-    }
-
-    async function stopScanner() {
-      if (html5QrCode && hasStarted) {
-        try {
-          await html5QrCode.stop();
-        } catch (e) {
-          console.warn("Fehler beim Stoppen des Scanners:", e);
-        }
-        hasStarted = false;
-      }
-    }
-
-    async function onScanSuccess(decodedText, decodedResult) {
-      console.log("=== QR-Code Scan Success ===");
-      console.log("Raw QR-Code:", decodedText);
-      console.log("Scan Result:", decodedResult);
-
-      frame.classList.remove("scanning");
-      await stopScanner();
-
-      let stationId = null;
-      let videoUrl = null;
-
-      try {
-        if (decodedText.includes("http")) {
-          const urlObj = new URL(decodedText);
-          stationId = urlObj.searchParams.get("station");
-          videoUrl = urlObj.searchParams.get("video");
-
-          if (
-            !videoUrl &&
-            (decodedText.endsWith(".mp4") ||
-              decodedText.endsWith(".mov") ||
-              decodedText.endsWith(".webm"))
-          ) {
-            videoUrl = decodedText;
-          }
-        } else if (decodedText.includes("=")) {
-          const params = new URLSearchParams(decodedText);
-          stationId = params.get("station");
-          videoUrl = params.get("video");
-        } else if (
-          decodedText.endsWith(".mp4") ||
-          decodedText.endsWith(".mov") ||
-          decodedText.endsWith(".webm")
-        ) {
-          videoUrl = decodedText;
-        }
-      } catch (err) {
-        console.error("QR parsing error:", err);
-      }
-
-      console.log("--- Extracted Data ---");
-      console.log("Station ID:", stationId || "nicht gefunden");
-      console.log("Video URL:", videoUrl || "nicht gefunden");
-      console.log("======================");
-
-      if (!stationId && !videoUrl) {
-        showError("QR-Code enthält keine gültigen Daten (Station oder Video)!");
-        setTimeout(() => window.location.reload(), 3000);
-        return;
-      }
-
-      if (videoUrl && !isValidVideoUrl(videoUrl)) {
-        showError("Ungültige Video-URL im QR-Code!");
-        setTimeout(() => window.location.reload(), 3000);
-        return;
-      }
-
-      if (stationId) {
-        stationId = stationId.trim();
-        if (!stationId.length) stationId = null;
-      }
-
-      sessionStorage.setItem("qr_raw", decodedText);
-      if (stationId) sessionStorage.setItem("stationId", stationId);
-      else sessionStorage.removeItem("stationId");
-      if (videoUrl) sessionStorage.setItem("videoUrl", videoUrl);
-      else sessionStorage.removeItem("videoUrl");
-
-      console.log("=== BEFORE REDIRECT - Verify Data ===");
-      console.log("sessionStorage.videoUrl:", sessionStorage.getItem("videoUrl"));
-      console.log("sessionStorage.stationId:", sessionStorage.getItem("stationId"));
-      console.log("sessionStorage.qr_raw:", sessionStorage.getItem("qr_raw"));
-      console.log("=====================================");
-
-      setTimeout(() => {
-        const params = new URLSearchParams();
-        params.set("qr", "scanned");
-        if (videoUrl) params.set("video", encodeURIComponent(videoUrl));
-        if (stationId) params.set("station", encodeURIComponent(stationId));
-
-        const target = `${TRACKER_PAGE}?${params.toString()}`;
-        console.log("Redirecting to:", target);
-        window.location.href = target;
-      }, 800);
-    }
-
-    function onScanFailure(error) {
-      // kein Logging, passiert dauerhaft wenn kein Code im Bild ist
-    }
-
-    async function startScanner() {
-      try {
-        if (!window.Html5Qrcode) {
-          throw new Error("html5-qrcode Bibliothek nicht geladen.");
+        function isLandscape() {
+            return window.innerWidth > window.innerHeight;
         }
 
-        loadingOverlay.style.display = "flex";
-        errorDiv.style.display = "none";
-        frame.classList.add("scanning");
+        // Dynamische Konfiguration mit unterschiedlichem aspectRatio & qrbox
+        function buildScannerConfig() {
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const landscape = isLandscape();
+            const shortEdge = Math.min(vw, vh);
 
-        const devices = await Html5Qrcode.getCameras();
-        if (!devices || !devices.length) {
-          showError("Keine Kamera gefunden.");
-          return;
+            let qrbox;
+            let aspectRatio;
+
+            if (landscape) {
+                // Querformat: eher breiter Scanbereich
+                const width = Math.floor(shortEdge * 0.8);
+                const height = Math.floor(shortEdge * 0.5);
+                qrbox = { width, height };
+                aspectRatio = 16 / 9;
+            } else {
+                // Hochformat: quadratischer Bereich
+                const size = Math.floor(shortEdge * 0.8);
+                qrbox = { width: size, height: size };
+                aspectRatio = 9 / 16;
+            }
+
+            return {
+                fps: 10,
+                qrbox,
+                aspectRatio,
+                disableFlip: true,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true
+                }
+            };
         }
 
-        console.log("Gefundene Kameras:", devices);
+        // Kamera mit Best-Practice-Sequenz wählen:
+        // 1) facingMode exact: environment
+        // 2) facingMode: environment
+        // 3) fallback via getCameras() + deviceId
+        async function startWithBestCamera(config) {
+            console.log('Trying start with facingMode exact "environment"...');
+            try {
+                await html5QrCode.start(
+                    { facingMode: { exact: "environment" } },
+                    config,
+                    onScanSuccess,
+                    onScanFailure
+                );
+                console.log('Started with facingMode exact "environment"');
+                return;
+            } catch (errExact) {
+                console.warn('Exact environment failed, fallback to facingMode "environment"', errExact);
+            }
 
-        let backCamera = devices.find((d) =>
-          d.label.toLowerCase().includes("back") ||
-          d.label.toLowerCase().includes("rear") ||
-          d.label.toLowerCase().includes("environment")
-        );
+            console.log('Trying start with facingMode "environment"...');
+            try {
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    onScanFailure
+                );
+                console.log('Started with facingMode "environment"');
+                return;
+            } catch (errEnv) {
+                console.warn('facingMode "environment" failed, fallback to deviceId', errEnv);
+            }
 
-        let cameraConfig;
-        if (backCamera) {
-          console.log("Back-Kamera:", backCamera.label);
-          cameraConfig = { deviceId: { exact: backCamera.id } };
-        } else {
-          console.warn("Keine Back-Kamera im Label – nutze facingMode: environment");
-          cameraConfig = { facingMode: { exact: "environment" } };
+            console.log('Trying start with deviceId from getCameras()...');
+            const devices = await Html5Qrcode.getCameras();
+            if (!devices || devices.length === 0) {
+                throw new Error('Keine Kamera gefunden.');
+            }
+
+            let camera = devices[0];
+            const envCam = devices.find(d =>
+                d.label.toLowerCase().includes('back') ||
+                d.label.toLowerCase().includes('rear') ||
+                d.label.toLowerCase().includes('environment')
+            );
+            if (envCam) camera = envCam;
+
+            console.log('Using camera via deviceId:', camera.label || camera.id);
+            await html5QrCode.start(
+                { deviceId: { exact: camera.id } },
+                config,
+                onScanSuccess,
+                onScanFailure
+            );
         }
 
-        html5QrCode = new Html5Qrcode("qr-reader");
+        async function restartScanner() {
+            if (isRestarting) {
+                console.log('Already restarting, skip...');
+                return;
+            }
+            isRestarting = true;
+            console.log('Restarting scanner (orientation change)...');
 
-        // WICHTIG: kein qrbox → html5-qrcode scannt den ganzen Frame, kein eigenes Overlay
-        const config = {
-          fps: 10,
-          disableFlip: true
-        };
+            try {
+                if (html5QrCode && html5QrCode.isScanning) {
+                    await html5QrCode.stop();
+                    console.log('Scanner stopped for restart');
+                }
+            } catch (e) {
+                console.warn('Error stopping scanner during restart:', e);
+            }
 
-        await html5QrCode.start(
-          cameraConfig,
-          config,
-          onScanSuccess,
-          onScanFailure
-        );
-
-        hasStarted = true;
-        loadingOverlay.style.display = "none";
-        console.log("Scanner gestartet (Orientation:", currentOrientation, ")");
-      } catch (err) {
-        console.error("Scanner init error:", err);
-
-        let msg = "Kamera-Zugriff fehlgeschlagen.";
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          msg = "Kamera-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.";
-        } else if (err.name === "NotFoundError") {
-          msg = "Keine Kamera gefunden.";
-        } else if (err.name === "NotReadableError") {
-          msg = "Kamera wird bereits von einer anderen Anwendung verwendet.";
-        } else if (err.name === "SecurityError") {
-          msg = "Kamera-Zugriff nur über HTTPS möglich (außer localhost).";
-        } else if (err.name === "OverconstrainedError") {
-          msg = "Back-Kamera-Konfiguration wird nicht unterstützt.";
+            try {
+                await initScanner();
+            } catch (err) {
+                console.error('Error re-initializing scanner:', err);
+            } finally {
+                isRestarting = false;
+            }
         }
 
-        showError(msg);
-      }
-    }
+        function isValidUrl(string) {
+            try {
+                const url = new URL(string);
+                return url.protocol === 'http:' || url.protocol === 'https:';
+            } catch (_) {
+                return false;
+            }
+        }
 
-    async function handleOrientationChange() {
-      const newOrientation = isLandscape() ? "landscape" : "portrait";
-      if (newOrientation === currentOrientation) return;
+        function isValidVideoUrl(string) {
+            if (!isValidUrl(string)) return false;
+            const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'];
+            const lowerUrl = string.toLowerCase();
+            return videoExtensions.some(ext => lowerUrl.includes(ext));
+        }
 
-      currentOrientation = newOrientation;
-      console.log("Orientation changed to:", currentOrientation);
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log('=== QR-Code Scan Success ===');
+            console.log('Raw QR-Code:', decodedText);
 
-      if (restartTimeout) clearTimeout(restartTimeout);
+            if (html5QrCode) {
+                html5QrCode.stop().catch(err => {
+                    console.error('Error stopping scanner after success:', err);
+                });
+            }
 
-      restartTimeout = setTimeout(async () => {
-        await stopScanner();
-        await startScanner();
-      }, 400);
-    }
+            let stationId = null;
+            let videoUrl = null;
 
-    window.addEventListener("load", () => {
-      currentOrientation = isLandscape() ? "landscape" : "portrait";
-      startScanner();
-    });
+            try {
+                if (decodedText.includes("http")) {
+                    const urlObj = new URL(decodedText);
+                    stationId = urlObj.searchParams.get("station");
+                    videoUrl = urlObj.searchParams.get("video");
 
-    window.addEventListener("beforeunload", () => {
-      stopScanner();
-    });
+                    if (!videoUrl && (decodedText.endsWith(".mp4") || decodedText.endsWith(".mov") || decodedText.endsWith(".webm"))) {
+                        videoUrl = decodedText;
+                    }
+                } else if (decodedText.includes("=")) {
+                    const params = new URLSearchParams(decodedText);
+                    stationId = params.get("station");
+                    videoUrl = params.get("video");
+                } else if (decodedText.endsWith(".mp4") || decodedText.endsWith(".mov") || decodedText.endsWith(".webm")) {
+                    videoUrl = decodedText;
+                }
+            } catch (err) {
+                console.error("QR parsing error:", err);
+            }
 
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        stopScanner();
-      }
-    });
+            console.log('--- Extracted Data ---');
+            console.log('Station ID:', stationId || 'nicht gefunden');
+            console.log('Video URL:', videoUrl || 'nicht gefunden');
 
-    window.addEventListener("orientationchange", handleOrientationChange);
-    window.addEventListener("resize", handleOrientationChange);
-  </script>
+            if (!stationId && !videoUrl) {
+                showError('QR-Code enthält keine gültigen Daten (Station oder Video)!');
+                setTimeout(() => window.location.reload(), 3000);
+                return;
+            }
+
+            if (videoUrl && !isValidVideoUrl(videoUrl)) {
+                showError('Ungültige Video-URL im QR-Code! Bitte verwenden Sie eine gültige HTTP(S) Video-URL.');
+                setTimeout(() => window.location.reload(), 3000);
+                return;
+            }
+
+            if (stationId) {
+                stationId = stationId.trim();
+                if (!stationId) stationId = null;
+            }
+
+            sessionStorage.setItem("qr_raw", decodedText);
+
+            if (stationId) {
+                sessionStorage.setItem("stationId", stationId);
+            } else {
+                sessionStorage.removeItem("stationId");
+            }
+
+            if (videoUrl) {
+                sessionStorage.setItem("videoUrl", videoUrl);
+            } else {
+                sessionStorage.removeItem("videoUrl");
+            }
+
+            const infoDiv = document.getElementById('scanner-info');
+            let successMessage = 'QR-Code erfolgreich gescannt!';
+            if (stationId && videoUrl) {
+                successMessage += ` (Station: ${stationId})`;
+            } else if (stationId) {
+                successMessage += ` (Station: ${stationId})`;
+            } else if (videoUrl) {
+                successMessage += ' (Video gefunden)';
+            }
+
+            infoDiv.textContent = successMessage;
+            infoDiv.style.background = 'rgba(0, 255, 0, 0.8)';
+            document.getElementById('scanner-frame').classList.remove('scanning');
+
+            setTimeout(() => {
+                const params = new URLSearchParams();
+                params.set('qr', 'scanned');
+                if (videoUrl) params.set('video', encodeURIComponent(videoUrl));
+                if (stationId) params.set('station', encodeURIComponent(stationId));
+                const redirectUrl = 'index_tracker.html?' + params.toString();
+                window.location.href = redirectUrl;
+            }, 1000);
+        }
+
+        function onScanFailure(error) {
+            // Wird sehr häufig aufgerufen – bewusst stumm
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        async function initScanner() {
+            const loading = document.getElementById('loading');
+            const container = document.getElementById('scanner-container');
+
+            try {
+                console.log('Initializing scanner...');
+                loading.style.display = 'block';
+                container.style.display = 'flex';
+
+                if (!html5QrCode) {
+                    html5QrCode = new Html5Qrcode("qr-reader");
+                } else {
+                    try {
+                        if (html5QrCode.isScanning) {
+                            await html5QrCode.stop();
+                        }
+                    } catch (e) {
+                        console.warn('Error stopping previous scan in init:', e);
+                    }
+                }
+
+                const config = buildScannerConfig();
+                console.log('Scanner config:', config);
+
+                // Kamera mit Back-Kamera-Best-Practice starten
+                await startWithBestCamera(config);
+
+                console.log('Scanner started');
+                loading.style.display = 'none';
+
+            } catch (error) {
+                console.error('Scanner initialization error:', error);
+                loading.style.display = 'none';
+
+                let errorMessage = 'Kamera-Zugriff fehlgeschlagen.';
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    errorMessage = 'Kamera-Zugriff verweigert. Bitte erlauben Sie den Kamera-Zugriff in Ihren Browser-Einstellungen.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage = 'Keine Kamera gefunden. Bitte stellen Sie sicher, dass Ihr Gerät eine Kamera hat.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage = 'Kamera wird bereits von einer anderen Anwendung verwendet.';
+                } else if (error.name === 'OverconstrainedError') {
+                    errorMessage = 'Kamera-Einstellungen werden nicht unterstützt.';
+                } else if (error.name === 'SecurityError') {
+                    errorMessage = 'Kamera-Zugriff nur über HTTPS möglich (außer localhost).';
+                }
+
+                showError(errorMessage);
+            }
+        }
+
+        async function stopScanner() {
+            if (html5QrCode) {
+                try {
+                    if (html5QrCode.isScanning) {
+                        await html5QrCode.stop();
+                        console.log('Scanner stopped');
+                    }
+                } catch (e) {
+                    console.warn('Error stopping scanner:', e);
+                }
+            }
+        }
+
+        // Stop-&-Restart bei Orientation-Change mit Debounce + neuem aspectRatio/qrbox
+        function handleOrientationChange() {
+            console.log('Orientation/resize event detected');
+
+            if (orientationChangeTimeout) {
+                clearTimeout(orientationChangeTimeout);
+            }
+
+            orientationChangeTimeout = setTimeout(() => {
+                console.log('Orientation stabilized, restarting scanner...');
+                restartScanner();
+            }, 500); // kleiner Puffer, damit das Layout sich setzen kann
+        }
+
+        window.addEventListener('load', () => {
+            console.log('Page loaded, starting scanner...');
+            initScanner();
+        });
+
+        window.addEventListener('beforeunload', () => {
+            stopScanner();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (!html5QrCode) return;
+
+            if (document.hidden) {
+                if (html5QrCode.isScanning) {
+                    html5QrCode.pause();
+                }
+            } else {
+                if (html5QrCode.isScanning) {
+                    html5QrCode.resume();
+                }
+            }
+        });
+
+        window.addEventListener('orientationchange', handleOrientationChange);
+        window.addEventListener('resize', handleOrientationChange);
+        if (screen.orientation) {
+            screen.orientation.addEventListener('change', handleOrientationChange);
+        }
+    </script>
 </body>
 </html>
