@@ -739,15 +739,21 @@
       function showWrongOrientationWithDelay() {
         const wrongOrientationDiv = document.getElementById('wrong-orientation');
         
-        // Zeige das Bild sofort
-        wrongOrientationDiv.style.display = 'flex';
-        
-        // Verstecke es nach 800ms
+        // Lösche zuerst jeden existierenden Timeout
         if (wrongOrientationTimeout) {
           clearTimeout(wrongOrientationTimeout);
+          wrongOrientationTimeout = null;
         }
+        
+        // Zeige das Bild sofort
+        wrongOrientationDiv.style.display = 'flex';
+        console.log('[Orientation] Showing wrong-orientation overlay for 800ms');
+        
+        // Verstecke es nach 800ms
         wrongOrientationTimeout = setTimeout(() => {
+          console.log('[Orientation] Hiding wrong-orientation overlay after 800ms');
           wrongOrientationDiv.style.display = 'none';
+          wrongOrientationTimeout = null;
         }, 800);
       }
 
@@ -757,10 +763,14 @@
         if (wasInLandscape && !nowLandscape) {
           // Wechsel zu Portrait: Wrong-Orientation Bild anzeigen
           console.log('[Orientation] Changed to PORTRAIT');
-          document.getElementById('wrong-orientation').style.display = 'flex';
+          
+          // Lösche zuerst jeden existierenden Timeout
           if (wrongOrientationTimeout) {
             clearTimeout(wrongOrientationTimeout);
+            wrongOrientationTimeout = null;
           }
+          
+          document.getElementById('wrong-orientation').style.display = 'flex';
         } else if (!wasInLandscape && nowLandscape) {
           // Wechsel zu Landscape: Wrong-Orientation Bild mit Verzögerung verstecken
           console.log('[Orientation] Changed to LANDSCAPE');
