@@ -9,6 +9,7 @@
     <title>Unity WebGL Player | Storiis</title>
 
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <!-- Offizielles Unity-Template-CSS -->
     <link rel="stylesheet" href="TemplateData/style.css">
     <link rel="manifest" href="manifest.webmanifest">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=swap" rel="stylesheet">
@@ -27,7 +28,7 @@
             font-family: 'Roboto', sans-serif;
             letter-spacing: 0.05em;
             font-size: max(2vw, 2vh);
-            /* NEU: Weißer Hintergrund, schwarze Standardschrift */
+            /* Weißer Hintergrund */
             background: #ffffff;
             color: #000000;
         }
@@ -71,7 +72,7 @@
             100% { transform: translateX(-50%) rotate(360deg); }
         }
 
-        /* Container und Canvas IMMER viewportfüllend */
+        /* AR-Container + Canvas viewportfüllend */
         #unity-container {
             position: fixed;
             top: 0;
@@ -79,8 +80,7 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            /* NEU: Weißer Hintergrund hinter Canvas/Loader */
-            background: #ffffff;
+            background: #ffffff; /* weißer Hintergrund */
         }
 
         #video-canvas,
@@ -109,8 +109,6 @@
 
         #unity-canvas {
             z-index: 100;
-            /* Unity-Canvas selbst bleibt transparent, damit Kamera später durchscheint,
-               der weiße Hintergrund kommt vom body / unity-container */
             background: transparent !important;
         }
 
@@ -149,7 +147,7 @@
             transform: scale(0.95);
         }
 
-        /* ==== NEUES UNITY-LOADING-UI: SCHWARZ AUF WEISS ==== */
+        /* ==== Ladebildschirm auf Basis der offiziellen TemplateData-Assets ==== */
 
         /* Wrapper für Logo + Progressbar */
         #unity-loading-bar {
@@ -157,52 +155,40 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            display: none; /* JS setzt auf "block" */
+            display: none; /* wird von JS auf "block" gesetzt */
             z-index: 500;
             text-align: center;
-            background: transparent;
         }
 
-        /* „Unity“-Logo als schwarzer Schriftzug / Platzhalter
-           (falls du ein echtes Logo-Bild willst, kannst du hier background-image setzen) */
+        /* Unity-Logo: Verwendung von TemplateData/unity-logo-light.png
+           (dunkles Logo für hellen Hintergrund) */
         #unity-logo {
-            width: 160px;
-            height: 60px;
+            width: 154px;
+            height: 130px;
             margin: 0 auto 20px auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: Arial, sans-serif;
-            font-weight: 700;
-            font-size: 28px;
-            color: #000000;
-        }
-        #unity-logo::before {
-            content: "Unity";
+            background: url('TemplateData/unity-logo-light.png') no-repeat center;
+            background-size: contain;
         }
 
-        /* Äußerer Balken (Rahmen) */
+        /* Leer-Balken (Rahmen) – offizielles PNG */
         #unity-progress-bar-empty {
-            width: 220px;
-            height: 14px;
+            width: 141px;
+            height: 18px;
             margin: 0 auto;
-            border-radius: 7px;
-            border: 2px solid #000000;
-            background: transparent;
-            box-sizing: border-box;
-            overflow: hidden;
+            background: url('TemplateData/progress-bar-empty-light.png') no-repeat center;
+            background-size: contain;
         }
 
-        /* Innerer, gefüllter Balken – wird per JS in der Breite gesetzt */
+        /* Gefüllter Balken – offizielles PNG, Breite wird per JS geändert */
         #unity-progress-bar-full {
-            height: 100%;
             width: 0%;
-            background: #000000;
-            border-radius: 5px;
-            transition: width 0.1s linear;
+            height: 18px;
+            margin-top: -18px;
+            background: url('TemplateData/progress-bar-full-light.png') no-repeat left center;
+            background-size: auto 100%;
         }
 
-        /* Warnbanner (Fehler/Warnings) – Text schwarz auf weißem Hintergrund */
+        /* Warnbanner – schwarze Schrift auf weißem Hintergrund */
         #unity-warning {
             position: fixed;
             bottom: 10px;
@@ -355,7 +341,6 @@
 
         await LoadWebcams();
 
-        // Button anzeigen, Spinner verstecken – wie im frischen Build
         document.getElementById("startARButton").style.visibility = "visible";
         document.getElementById("spinner").style.visibility     = "hidden";
 
@@ -363,7 +348,6 @@
       };
       initialize();
 
-      // Service Worker wie im neuen Build
       window.addEventListener("load", function () {
         if ("serviceWorker" in navigator) {
           navigator.serviceWorker.register("ServiceWorker.js");
@@ -376,12 +360,9 @@
       var progressBarFull = document.querySelector("#unity-progress-bar-full");
       var warningBanner   = document.querySelector("#unity-warning");
 
-      // Canvas-Größen an Viewport anpassen (Unity + Video)
       function resizeCanvases() {
         const w = window.innerWidth;
         const h = window.innerHeight;
-
-        console.log('[Canvas] Resizing to:', w, 'x', h);
 
         ['unity-canvas', 'video-canvas'].forEach(id => {
           const c = document.getElementById(id);
@@ -404,22 +385,16 @@
 
           c.width  = w;
           c.height = h;
-
-          console.log('[Canvas] ' + id + ' set to:', c.width, 'x', c.height, 'CSS:', w + 'px x ' + h + 'px');
         });
 
         notifyUnityCanvasResize(w, h);
       }
 
       function notifyUnityCanvasResize(w, h) {
-        if (!window.unityInstance) {
-          console.log('[Canvas] Unity instance not ready yet');
-          return;
-        }
+        if (!window.unityInstance) return;
 
         try {
           window.unityInstance.SendMessage('ARCamera', 'OnCanvasResize', w + ',' + h);
-          console.log('[Canvas] Notified Unity of resize:', w, 'x', h);
         } catch (e) {
           console.warn('[Canvas] Could not notify Unity:', e);
         }
@@ -489,7 +464,6 @@
             var htmlBackBtn = document.getElementById("html-back-button");
             if (htmlBackBtn) {
               htmlBackBtn.style.display = "flex";
-              console.log("[HTML] Back-Button aktiviert");
             }
           }).catch((message) => {
             alert(message);
@@ -513,36 +487,29 @@
         window.requestingForPermissions = true;
         try {
           window.webcamStream = await navigator.mediaDevices.getUserMedia(window.WEBCAM_SETTINGS);
-          console.log("Webcam access granted");
           requestingForPermissions = false;
           StopWebcam();
         } catch (err) {
-          console.error("getUserMedia error - ", err);
           ShowError("Failed to start the experience. Camera permission was denied");
           window.requestingForPermissions = false;
         }
       }
 
       function StopWebcam() {
-        console.log("stopping camera");
         if (!window.webcamStream) return;
         window.webcamStream.getTracks().forEach(track => track.stop());
       }
 
       async function StartWebcam() {
-        console.log("StartWebcam");
         window.webcamStream = await navigator.mediaDevices.getUserMedia(window.WEBCAM_SETTINGS);
         while (window.requestingForPermissions) {
-          console.log("Waiting for permissions...");
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-        console.log("Got Permissions");
         if (window.webcamStream) {
           const video = document.querySelector("#webcam-video");
           video.srcObject = webcamStream;
           try {
             await arCamera.startWebcam(video);
-            console.log("Webcam started successfully");
             window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamSuccess');
 
             const uCanvas = document.querySelector("#unity-canvas");
@@ -550,11 +517,9 @@
             uCanvas.style.background =
               bgColor.replace("rgb", "rgba").replace(")", ", 0)");
           } catch (err) {
-            console.error("Webcam failed to start - ", err);
             window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamFail');
           }
         } else {
-          console.error("Webcam failed to start - permission not yet granted");
           window.unityInstance.SendMessage('ARCamera', 'OnStartWebcamFail');
         }
       }
@@ -620,23 +585,18 @@
 
       async function IsCameraPermissionGranted() {
         if (!navigator.permissions || !navigator.mediaDevices) {
-          console.log("Permissions API or mediaDevices not supported.");
           return false;
         }
         try {
           const permissionStatus = await navigator.permissions.query({ name: "camera" });
           if (permissionStatus.state === "granted") {
-            console.log("Camera permission has already been granted.");
             return true;
           } else if (permissionStatus.state === "prompt") {
-            console.log("Camera permission is promptable.");
             return false;
           } else {
-            console.log("Camera permission has been denied.");
             return false;
           }
         } catch (error) {
-          console.log("Error checking camera permission:", error);
           return false;
         }
       }
@@ -684,39 +644,29 @@
       }
 
       function BackToScanner() {
-        console.log("BackToScanner called from Unity");
-
         try {
           if (window.arCamera && typeof window.arCamera.stopWebcam === "function") {
             window.arCamera.stopWebcam();
           }
-        } catch (e) {
-          console.warn("Could not stop arCamera webcam:", e);
-        }
+        } catch (e) {}
 
         try {
           if (window.webcamStream) {
             window.webcamStream.getTracks().forEach(track => track.stop());
             window.webcamStream = null;
-            console.log("Webcam stream stopped.");
           }
-        } catch (e) {
-          console.warn("Could not stop webcamStream:", e);
-        }
+        } catch (e) {}
 
         if (window.unityInstance && typeof window.unityInstance.Quit === "function") {
           try {
             window.unityInstance.Quit().then(function () {
-              console.log("Unity quit finished, going back to qr-scanner.html");
               window.unityInstance = null;
               window.location.href = "qr-scanner.html";
-            }).catch(function (err) {
-              console.warn("Unity Quit failed:", err);
+            }).catch(function () {
               window.location.href = "qr-scanner.html";
             });
             return;
           } catch (e) {
-            console.warn("Error during Unity Quit:", e);
             window.location.href = "qr-scanner.html";
             return;
           }
@@ -745,10 +695,8 @@
         }
 
         wrongOrientationDiv.style.display = 'flex';
-        console.log('[Orientation] Showing wrong-orientation overlay for 800ms');
 
         wrongOrientationTimeout = setTimeout(() => {
-          console.log('[Orientation] Hiding wrong-orientation overlay after 800ms');
           wrongOrientationDiv.style.display = 'none';
           wrongOrientationTimeout = null;
         }, 800);
@@ -758,8 +706,6 @@
         const nowLandscape = isLandscape();
 
         if (wasInLandscape && !nowLandscape) {
-          console.log('[Orientation] Changed to PORTRAIT');
-
           if (wrongOrientationTimeout) {
             clearTimeout(wrongOrientationTimeout);
             wrongOrientationTimeout = null;
@@ -768,7 +714,6 @@
           const el = document.getElementById('wrong-orientation');
           if (el) el.style.display = 'flex';
         } else if (!wasInLandscape && nowLandscape) {
-          console.log('[Orientation] Changed to LANDSCAPE');
           if (document.getElementById('wrong-orientation')) {
             showWrongOrientationWithDelay();
           }
