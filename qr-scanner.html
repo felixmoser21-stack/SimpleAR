@@ -189,8 +189,6 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-
-    /* funktioniert in Portrait & Landscape ohne spezielle Media Queries */
   </style>
 </head>
 <body>
@@ -279,7 +277,7 @@
 
       await stopScanner();
 
-      // ---- deine Auswerte-Logik ----
+      // ---- Auswertung wie in deiner Version ----
       let stationId = null;
       let videoUrl = null;
 
@@ -378,36 +376,39 @@
           return;
         }
 
-        console.log("Available cameras:", devices);
+        console.log("Gefundene Kameras:", devices);
 
-        let cameraId = devices[0].id;
-        const backCamera = devices.find((d) =>
+        // 1️⃣ Versuche explizit die Back-Kamera zu finden
+        let backCamera = devices.find((d) =>
           d.label.toLowerCase().includes("back") ||
           d.label.toLowerCase().includes("rear") ||
           d.label.toLowerCase().includes("environment")
         );
+
+        let cameraConfig;
+
         if (backCamera) {
-          cameraId = backCamera.id;
-          console.log("Using back camera:", backCamera.label);
+          console.log("Back-Kamera gefunden:", backCamera.label);
+          cameraConfig = { deviceId: { exact: backCamera.id } };
         } else {
-          console.log("Using default camera:", devices[0].label);
+          console.warn("Keine Back-Kamera im Label erkannt. Erzwinge facingMode: environment");
+          cameraConfig = { facingMode: { exact: "environment" } };
         }
 
         html5QrCode = new Html5Qrcode("qr-reader");
 
-        // Kamera-Permission wird hier direkt angefragt
         const config = {
           fps: 10,
-          qrbox: function(viewfinderWidth, viewfinderHeight) {
-            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-            const boxSize = Math.floor(minEdge * 0.6);
-            return { width: boxSize, height: boxSize };
+          qrbox: function (vw, vh) {
+            const size = Math.floor(Math.min(vw, vh) * 0.6);
+            return { width: size, height: size };
           },
-          disableFlip: false
+          disableFlip: true
         };
 
+        // Kamera-Permission kommt hier direkt
         await html5QrCode.start(
-          { deviceId: { exact: cameraId } },
+          cameraConfig,
           config,
           onScanSuccess,
           onScanFailure
@@ -417,7 +418,7 @@
         loadingOverlay.style.display = "none";
         errorDiv.style.display = "none";
         setStatus("Richte den QR-Code in den Rahmen.");
-        console.log("Scanner started");
+        console.log("Scanner gestartet (Back-Kamera).");
       } catch (err) {
         console.error("Scanner init error:", err);
 
@@ -430,6 +431,8 @@
           msg = "Kamera wird bereits von einer anderen Anwendung verwendet.";
         } else if (err.name === "SecurityError") {
           msg = "Kamera-Zugriff nur über HTTPS möglich (außer localhost).";
+        } else if (err.name === "OverconstrainedError") {
+          msg = "Back-Kamera-Konfiguration wird nicht unterstützt.";
         }
 
         showError(msg);
