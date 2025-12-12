@@ -14,7 +14,9 @@
         overlay.style.display = "flex";
         overlay.style.alignItems = "center";
         overlay.style.justifyContent = "center";
-        overlay.style.zIndex = "99999";
+       
+		overlay.style.zIndex = "99999999";
+
         overlay.style.visibility = "hidden";
 
         // Logo als "Spinner"
