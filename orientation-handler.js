@@ -34,8 +34,7 @@
         overlay.style.pointerEvents = "none";            // Klicks gehen weiter an Unity etc.
 
         const logo = document.createElement("img");
-        logo.src = "storiies-logo.png";                  // Pfad ggf. anpassen
-        logo.alt = "STORIES Logo";
+        logo.src = "logo.png";                  // Pfad ggf. anpassen
         logo.style.width = "140px";
         logo.style.height = "auto";
         logo.style.transformOrigin = "center center";
