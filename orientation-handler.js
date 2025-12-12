@@ -58,4 +58,18 @@
 
         overlay.style.visibility = "visible";
 
-        se
+        setTimeout(() => {
+            overlay.style.visibility = "hidden";
+        }, 1000); // 1 Sekunde sichtbar
+    }
+
+    function handleOrientation() {
+        showOverlayBriefly();
+    }
+
+    window.addEventListener("orientationchange", handleOrientation);
+
+    document.addEventListener("DOMContentLoaded", () => {
+        createOverlay();
+    });
+})();
